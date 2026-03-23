@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install validation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq stow
+
+      - name: Check shell script syntax
+        run: |
+          bash -n scripts/install-brew.bash
+          bash -n scripts/link-dotfiles.bash
+
+      - name: Validate JSON config files
+        run: |
+          find dotfiles -type f -name '*.json' -print0 | xargs -0 -n1 jq empty
+
+      - name: Preview stow install
+        run: make dry-run
