@@ -31,6 +31,7 @@ brew "derailed/k9s/k9s"
 brew "peonping/tap/peon-ping"
 brew "shivammathur/php/php@7.3", link: true
 brew "yakitrak/yakitrak/obsidian-cli"
+brew "stow"
 cask "codex"
 cask "font-monaspace"
 cask "kap"

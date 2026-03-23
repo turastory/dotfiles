@@ -1,8 +1,5 @@
 [core]
 	editor = nvim
-[credential "https://github.com"]
-	helper = 
-	helper = !/opt/homebrew/bin/gh auth git-credential
-[credential "https://gist.github.com"]
-	helper = 
-	helper = !/opt/homebrew/bin/gh auth git-credential
+[user]
+	name = yoonho
+	email = soldier4443@gmail.com
