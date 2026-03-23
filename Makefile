@@ -1,4 +1,4 @@
-.PHONY: install dry-run adopt brew all
+.PHONY: install dry-run adopt brew brew-dump all
 
 install:
 	@./scripts/link-dotfiles.bash
@@ -17,5 +17,8 @@ adopt:
 
 brew:
 	@./scripts/install-brew.bash
+
+brew-dump:
+	@brew bundle dump --force --describe --file="$(CURDIR)/Brewfile"
 
 all: brew install
