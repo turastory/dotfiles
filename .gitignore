@@ -1,0 +1,15 @@
+# OS
+.DS_Store
+
+# Secrets - never commit these
+*.secret
+*.pem
+*.key
+
+# Backups created by install script
+*.backup
+
+# Editor
+*.swp
+*.swo
+*~

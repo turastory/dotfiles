@@ -1,0 +1,14 @@
+# Prepends the given paths to the PATH variable if they are not already in it.
+path_prepend() {
+  for ((i=${#}; i>0; i--)); do
+    local arg="${!i}"
+    if [[ ":${PATH}:" != *":${arg}:"* ]]; then
+        PATH="${ARG}${PATH:+":${PATH}"}"
+    fi
+  done
+}
+
+path_prepend /usr/local/bin /opt/homebrew/bin
+
+# Not needed, but just in case.
+export PATH
