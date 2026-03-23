@@ -15,7 +15,7 @@ Uses [GNU Stow](https://www.gnu.org/software/stow/) for symlink management. Each
 | **Keyboard** | Karabiner-Elements |
 | **AI Tools** | Claude Code (CLAUDE.md, settings) |
 | **Dev Tools** | gh CLI, asdf/tool-versions |
-| **Packages** | Brewfile (Homebrew) |
+| **Packages** | Brewfile + optional Brewfile.local (Homebrew) |
 
 ## Setup on a new machine
 
@@ -43,7 +43,8 @@ make adopt
 
 ```
 dotfiles/
-├── Brewfile                  # Homebrew packages
+├── Brewfile                  # Shared Homebrew packages
+├── Brewfile.local            # Optional machine/work-specific Homebrew packages
 ├── Makefile                  # make install / dry-run / adopt / brew
 ├── scripts/
 │   ├── link-dotfiles.bash    # GNU Stow installer (with dry-run support)
@@ -68,3 +69,16 @@ dotfiles/
 ```
 
 Note: iTerm2 auto-loads JSON files from `~/Library/Application Support/iTerm2/DynamicProfiles`; restart iTerm2 after install so the profile appears.
+
+## Homebrew sync workflow
+
+- Keep cross-machine packages in `Brewfile`.
+- Keep private, work-only, or machine-specific packages in `Brewfile.local`.
+- `make brew` installs `Brewfile` first and then `Brewfile.local` if it exists.
+- `make brew-dump` snapshots the current machine state into `Brewfile.local`.
+
+For a new shared package, prefer:
+
+```bash
+brew bundle add <name> --file=/Users/yoonho/dotfiles/Brewfile
+```

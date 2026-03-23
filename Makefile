@@ -19,6 +19,6 @@ brew:
 	@./scripts/install-brew.bash
 
 brew-dump:
-	@brew bundle dump --force --describe --file="$(CURDIR)/Brewfile"
+	@brew bundle dump --force --describe --file="$(CURDIR)/Brewfile.local"
 
 all: brew install

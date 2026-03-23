@@ -2,6 +2,7 @@
 set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOCAL_BREWFILE="$DOTFILES_DIR/Brewfile.local"
 
 GREEN='\033[0;32m'
 NC='\033[0m'
@@ -25,6 +26,11 @@ fi
 
 log_info "Installing packages from Brewfile..."
 brew bundle --file="$DOTFILES_DIR/Brewfile" --verbose
+
+if [ -f "$LOCAL_BREWFILE" ]; then
+    log_info "Installing packages from Brewfile.local..."
+    brew bundle --file="$LOCAL_BREWFILE" --verbose
+fi
 
 echo ""
 log_info "Homebrew packages installed successfully!"

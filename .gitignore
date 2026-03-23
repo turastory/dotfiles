@@ -8,6 +8,7 @@
 
 # Backups created by install script
 *.backup
+Brewfile.local
 
 # Editor
 *.swp
