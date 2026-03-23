@@ -21,16 +21,23 @@ jobs:
       - name: Install validation dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq stow
+          sudo apt-get install -y jq stow zsh
 
       - name: Check shell script syntax
         run: |
+          bash -n scripts/bootstrap-shell.bash
           bash -n scripts/install-brew.bash
           bash -n scripts/link-dotfiles.bash
+          zsh -n dotfiles/zsh/.zshenv
+          zsh -n dotfiles/zsh/.zshrc
 
       - name: Validate JSON config files
         run: |
           find dotfiles -type f -name '*.json' -print0 | xargs -0 -n1 jq empty
+
+      - name: Check make targets
+        run: |
+          make -n setup
 
       - name: Preview stow install
         run: make dry-run

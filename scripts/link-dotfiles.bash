@@ -37,6 +37,7 @@ echo ""
 
 # --- Stow each package ---
 STOW_DIR="$DOTFILES_DIR/dotfiles"
+HAD_CONFLICT=false
 
 for package_dir in "$STOW_DIR"/*/; do
     package="$(basename "$package_dir")"
@@ -70,17 +71,19 @@ for package_dir in "$STOW_DIR"/*/; do
             done || true
     else
         log_info "Stowing: $package"
-        if ! stow --verbose=1 -t "$HOME" -d "$STOW_DIR" "$package" 2>&1 | \
-            grep -E "^(LINK|UNLINK)" | while read -r line; do
+        if stow_output="$(stow --verbose=1 -t "$HOME" -d "$STOW_DIR" "$package" 2>&1)"; then
+            printf '%s\n' "$stow_output" | grep -E "^(LINK|UNLINK)" | while read -r line; do
                 log_info "  $line"
-            done; then
-            # If stow fails due to conflicts, show helpful message
-            if ! stow -t "$HOME" -d "$STOW_DIR" "$package" 2>/dev/null; then
-                log_error "Conflict in '$package'. Existing files block stow."
-                log_error "To fix: back up or remove the conflicting files, then re-run."
-                log_error "Or use: stow --adopt -t \$HOME -d dotfiles $package"
-                log_error "  (--adopt moves existing files INTO the repo, replacing repo copies)"
-            fi
+            done || true
+        else
+            HAD_CONFLICT=true
+            printf '%s\n' "$stow_output" | grep -E "^(LINK|UNLINK|CONFLICT)" | while read -r line; do
+                log_error "  $line"
+            done || true
+            log_error "Conflict in '$package'. Existing files block stow."
+            log_error "To fix: back up or remove the conflicting files, then re-run."
+            log_error "Or use: stow --adopt -t \$HOME -d dotfiles $package"
+            log_error "  (--adopt moves existing files INTO the repo, replacing repo copies)"
         fi
     fi
 done
@@ -91,6 +94,9 @@ if $DRY_RUN; then
     echo ""
     echo "To apply: make install"
     echo "To adopt existing files into repo: make adopt"
+elif $HAD_CONFLICT; then
+    log_error "Dotfiles install completed with conflicts."
+    exit 1
 else
     log_info "All dotfiles stowed successfully!"
 fi

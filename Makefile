@@ -1,4 +1,4 @@
-.PHONY: install dry-run adopt brew brew-dump all
+.PHONY: install dry-run adopt brew brew-dump setup all
 
 install:
 	@./scripts/link-dotfiles.bash
@@ -21,4 +21,9 @@ brew:
 brew-dump:
 	@brew bundle dump --force --describe --file="$(CURDIR)/Brewfile.local"
 
-all: brew install
+setup:
+	@./scripts/install-brew.bash
+	@./scripts/bootstrap-shell.bash
+	@./scripts/link-dotfiles.bash
+
+all: setup

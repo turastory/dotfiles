@@ -27,15 +27,13 @@ cd ~/dotfiles
 # 2. Preview what will happen (no changes made)
 make dry-run
 
-# 3. Install Homebrew packages
-make brew
+# 3. Full setup on a fresh machine
+make setup
 
-# 4. If this is a FRESH machine (no existing dotfiles):
-make install
-
-# 4-alt. If you have EXISTING dotfiles you want to keep:
+# 4. If you have EXISTING dotfiles you want to keep:
 #   --adopt moves your existing files INTO the repo, then creates symlinks.
 #   Review with 'git diff' afterwards.
+make brew
 make adopt
 ```
 
@@ -45,8 +43,9 @@ make adopt
 dotfiles/
 ├── Brewfile                  # Shared Homebrew packages
 ├── Brewfile.local            # Optional machine/work-specific Homebrew packages
-├── Makefile                  # make install / dry-run / adopt / brew
+├── Makefile                  # make setup / install / dry-run / adopt / brew
 ├── scripts/
+│   ├── bootstrap-shell.bash  # oh-my-zsh, theme, plugin bootstrap
 │   ├── link-dotfiles.bash    # GNU Stow installer (with dry-run support)
 │   └── install-brew.bash     # Homebrew installer
 ├── templates/
@@ -68,7 +67,7 @@ dotfiles/
                         └── Profiles.json
 ```
 
-Note: iTerm2 auto-loads JSON files from `~/Library/Application Support/iTerm2/DynamicProfiles`; restart iTerm2 after install so the profile appears.
+Note: iTerm2 auto-loads JSON files from `~/Library/Application Support/iTerm2/DynamicProfiles`; restart iTerm2 after install so the profile appears. The shared setup also installs `font-meslo-for-powerlevel10k`, `font-monaspace`, and `font-inter` via Homebrew, so restarting iTerm2 after `make brew` or `make setup` helps it pick up newly installed fonts.
 
 ## Homebrew sync workflow
 
@@ -82,3 +81,11 @@ For a new shared package, prefer:
 ```bash
 brew bundle add <name> --file=/Users/yoonho/dotfiles/Brewfile
 ```
+
+## Bootstrap flow
+
+- `make setup` installs Homebrew packages, bootstraps shell dependencies, and then stows dotfiles.
+- `make brew` installs shared packages from `Brewfile` plus optional machine-local packages from `Brewfile.local`.
+- `make install` only links dotfiles and now exits with an error if conflicts are found.
+- Rust is installed from Homebrew.
+- oh-my-zsh, powerlevel10k, `zsh-autosuggestions`, and `zsh-completions` are installed by the shell bootstrap script.

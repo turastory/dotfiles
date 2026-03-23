@@ -79,13 +79,17 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(git virtualenv zsh-autosuggestions zsh-completions docker docker-compose)
 
-# autoload before sourcing oh my zsh
-fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src
-autoload -U compinit && compinit
-source "$ZSH/oh-my-zsh.sh"
+if [ -d "$ZSH" ]; then
+  # autoload before sourcing oh my zsh
+  fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src
+  autoload -U compinit && compinit
+  source "$ZSH/oh-my-zsh.sh"
+fi
 
 # zoxide
-eval "$(zoxide init zsh)"
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
+fi
 
 # User configuration
 
@@ -142,14 +146,18 @@ esac
 # pyenv
 export PYENV_ROOT="$HOME/.pyenv"
 [[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init - zsh)"
+if command -v pyenv >/dev/null 2>&1; then
+  eval "$(pyenv init - zsh)"
+fi
 
 # For git ssh
 eval "$(ssh-agent -s)" &> /dev/null
 export PATH="$HOME/.local/bin:$PATH"
 
 # asdf
-. /opt/homebrew/opt/asdf/libexec/asdf.sh
+if [ -f /opt/homebrew/opt/asdf/libexec/asdf.sh ]; then
+  . /opt/homebrew/opt/asdf/libexec/asdf.sh
+fi
 # asdf end
 
 # Added by LM Studio CLI (lms)
@@ -157,7 +165,9 @@ export PATH="$PATH:$HOME/.lmstudio/bin"
 # End of LM Studio CLI section
 
 # golang
-export PATH=$PATH:$(go env GOPATH)/bin
+if command -v go >/dev/null 2>&1; then
+  export PATH=$PATH:$(go env GOPATH)/bin
+fi
 
 # bun completions
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
