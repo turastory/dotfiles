@@ -35,6 +35,13 @@ make setup
 #   Review with 'git diff' afterwards.
 make brew
 make adopt
+
+# 5. Set your local Git identity (shared config uses ~/.gitconfig.local)
+cat > ~/.gitconfig.local <<'EOF'
+[user]
+    name = Your Name
+    email = you@example.com
+EOF
 ```
 
 ## Structure
@@ -87,6 +94,7 @@ brew bundle add <name> --file=/Users/yoonho/dotfiles/Brewfile
 - `make setup` installs Homebrew packages, bootstraps shell dependencies, and then stows dotfiles.
 - `make brew` installs shared packages from `Brewfile` plus optional machine-local packages from `Brewfile.local`.
 - `make install` only links dotfiles and now exits with an error if conflicts are found.
+- Git identity is intentionally local-only; define `~/.gitconfig.local` with your `user.name` and `user.email`.
 - Rust is installed from Homebrew.
 - `nvim` is the editor source of truth.
 - `vim`, `vi`, and `vimdiff` are shell aliases to Neovim.
