@@ -1,5 +1,28 @@
+[init]
+    defaultBranch = main
 [core]
-	editor = nvim
+    editor = nvim
+    excludesfile = ~/.gitignore
 [user]
-	name = yoonho
-	email = soldier4443@gmail.com
+    useConfigOnly = true
+[alias]
+    f = fetch --prune --tags
+    l = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%ad) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
+    la = log --all --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%ad) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
+    today = ! git l --since "12am"
+    unstage = reset HEAD .
+[include]
+    path = ~/.gitconfig.local # Local specific setups 
+[color "status"]
+    added = green
+    changed = yellow
+    untracked = red
+[color "branch"]
+    current = yellow reverse
+    local = white
+    remote = green
+[pull]
+    rebase = true
+[fetch]
+    prune = true
+
