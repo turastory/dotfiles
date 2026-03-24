@@ -13,6 +13,7 @@
     unstage = reset HEAD .
 [include]
     path = ~/.gitconfig.local # Local specific setups 
+    path = ~/.gitconfig.delta # git-delta settings
 [color "status"]
     added = green
     changed = yellow
@@ -25,4 +26,3 @@
     rebase = true
 [fetch]
     prune = true
-

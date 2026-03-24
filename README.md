@@ -9,7 +9,7 @@ Uses [GNU Stow](https://www.gnu.org/software/stow/) for symlink management. Each
 | Category | Contents |
 |----------|----------|
 | **Shell** | zsh, oh-my-zsh, powerlevel10k, aliases |
-| **Git** | gitconfig |
+| **Git** | gitconfig + git-delta config |
 | **Editor** | Neovim (Lua config + lazy.nvim plugins) |
 | **Terminal** | tmux, iTerm2 (`DynamicProfiles`) |
 | **Keyboard** | Karabiner-Elements |
@@ -53,7 +53,7 @@ dotfiles/
 │       └── settings.json.template  # {{HOME}} placeholder, rendered at install
 └── dotfiles/                 # Stow packages (each mirrors $HOME)
     ├── zsh/                  # .zshrc, .zprofile, .aliases, .p10k.zsh, ...
-    ├── git/                  # .gitconfig
+    ├── git/                  # .gitconfig, .gitconfig.delta
     ├── nvim/.config/nvim/    # init.vim + lua/ + after/
     ├── tmux/                 # .tmux.conf
     ├── karabiner/.config/    # karabiner.json
