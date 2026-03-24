@@ -10,7 +10,7 @@ Uses [GNU Stow](https://www.gnu.org/software/stow/) for symlink management. Each
 |----------|----------|
 | **Shell** | zsh, oh-my-zsh, powerlevel10k, aliases |
 | **Git** | gitconfig |
-| **Editor** | Neovim (init.vim + lua) |
+| **Editor** | Neovim (Lua config + lazy.nvim plugins) |
 | **Terminal** | tmux, iTerm2 (`DynamicProfiles`) |
 | **Keyboard** | Karabiner-Elements |
 | **AI Tools** | Claude Code (CLAUDE.md, settings) |
@@ -54,7 +54,7 @@ dotfiles/
 └── dotfiles/                 # Stow packages (each mirrors $HOME)
     ├── zsh/                  # .zshrc, .zprofile, .aliases, .p10k.zsh, ...
     ├── git/                  # .gitconfig
-    ├── nvim/.config/nvim/    # init.vim + lua/
+    ├── nvim/.config/nvim/    # init.vim + lua/ + after/
     ├── tmux/                 # .tmux.conf
     ├── karabiner/.config/    # karabiner.json
     ├── claude/.claude/       # CLAUDE.md
@@ -88,4 +88,6 @@ brew bundle add <name> --file=/Users/yoonho/dotfiles/Brewfile
 - `make brew` installs shared packages from `Brewfile` plus optional machine-local packages from `Brewfile.local`.
 - `make install` only links dotfiles and now exits with an error if conflicts are found.
 - Rust is installed from Homebrew.
+- `nvim` is the editor source of truth.
+- `vim`, `vi`, and `vimdiff` are shell aliases to Neovim.
 - oh-my-zsh, powerlevel10k, `zsh-autosuggestions`, and `zsh-completions` are installed by the shell bootstrap script.

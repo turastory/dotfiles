@@ -125,10 +125,14 @@ fi
 
 source ~/.aliases
 
-# neovim
+# editors
+export EDITOR="nvim"
+export VISUAL="nvim"
 alias vim="nvim"
 alias vi="nvim"
 alias vimdiff="nvim -d"
+alias v="nvim"
+alias nv="nvim"
 
 # nvm
 export NVM_DIR="$HOME/.nvm"

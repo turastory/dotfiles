@@ -1,3 +1,2 @@
-set runtimepath^=~/.vim runtimepath+=~/.vim/after
-let &packpath = &runtimepath
-source ~/.vimrc
+lua require('config.options')
+lua require('config.lazy')
