@@ -6,6 +6,7 @@ alias p='pnpm'
 alias yi='yarn install'
 alias yd='yarn dev'
 alias t='tmux'
+alias o='ollama'
 
 alias gf='git f'
 alias gl='git l'
