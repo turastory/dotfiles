@@ -179,3 +179,25 @@ fi
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
+
+# >>> quickcommand zsh integration >>>
+qc() {
+  if [[ $# -eq 0 ]]; then
+    command qc "$@"
+    return $?
+  fi
+
+  case "$1" in
+    --execute|--emit-command|--help|-h|--version|-v|init|config)
+      command qc "$@"
+      return $?
+      ;;
+  esac
+
+  local cmd
+  cmd="$(command qc --emit-command "$@")" || return $?
+  if [[ -n "$cmd" ]]; then
+    print -z -- "$cmd"
+  fi
+}
+# <<< quickcommand zsh integration <<<
