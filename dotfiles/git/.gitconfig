@@ -27,9 +27,3 @@
 [fetch]
     prune = true
 
-[credential "https://github.com"]
-	helper = 
-	helper = !/usr/bin/env sh -c 'command -v gh >/dev/null 2>&1 && exec gh auth git-credential || true'
-[credential "https://gist.github.com"]
-	helper = 
-	helper = !/usr/bin/env sh -c 'command -v gh >/dev/null 2>&1 && exec gh auth git-credential || true'
