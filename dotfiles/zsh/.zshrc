@@ -217,3 +217,7 @@ qc() {
   fi
 }
 # <<< quickcommand zsh integration <<<
+
+# local-only config
+[ -s "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
+
