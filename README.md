@@ -55,10 +55,8 @@ dotfiles/
 │   ├── bootstrap-shell.bash  # oh-my-zsh, theme, plugin bootstrap
 │   ├── link-dotfiles.bash    # GNU Stow installer (with dry-run support)
 │   └── install-brew.bash     # Homebrew installer
-├── templates/
-│   └── claude/
-│       └── settings.json.template  # {{HOME}} placeholder, rendered at install
 └── dotfiles/                 # Stow packages (each mirrors $HOME)
+    ├── agents/.agents/       # Codex/agent config and skills
     ├── zsh/                  # .zshrc, .zprofile, .aliases, .p10k.zsh, ...
     ├── git/                  # .gitconfig, .gitconfig.delta
     ├── nvim/.config/nvim/    # init.vim + lua/ + after/
@@ -86,14 +84,17 @@ Note: iTerm2 auto-loads JSON files from `~/Library/Application Support/iTerm2/Dy
 For a new shared package, prefer:
 
 ```bash
-brew bundle add <name> --file=/Users/yoonho/dotfiles/Brewfile
+brew bundle add <name> --file=~/dotfiles/Brewfile
 ```
 
 ## Bootstrap flow
 
 - `make setup` installs Homebrew packages, bootstraps shell dependencies, and then stows dotfiles.
+- `make install` to link dotfiles.
+- `make dry-run` to preview the stow install without changing files.
+- `make adopt` now exits nonzero if any package hits a conflict.
 - `make brew` installs shared packages from `Brewfile` plus optional machine-local packages from `Brewfile.local`.
-- `make install` only links dotfiles and now exits with an error if conflicts are found.
+- `~/.agents/skills` is managed as a Stow package via `dotfiles/agents/.agents/skills`, which points at the repo's `skills/` directory.
 - Git identity is intentionally local-only; define `~/.gitconfig.local` with your `user.name` and `user.email`.
 - Rust is installed from Homebrew.
 - `nvim` is the editor source of truth.

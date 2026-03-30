@@ -28,6 +28,7 @@ jobs:
           bash -n scripts/bootstrap-shell.bash
           bash -n scripts/install-brew.bash
           bash -n scripts/link-dotfiles.bash
+          zsh -n dotfiles/zsh/.zprofile
           zsh -n dotfiles/zsh/.zshenv
           zsh -n dotfiles/zsh/.zshrc
 

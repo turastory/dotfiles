@@ -81,9 +81,14 @@ plugins=(git virtualenv zsh-autosuggestions zsh-completions docker docker-compos
 
 if [ -d "$ZSH" ]; then
   # autoload before sourcing oh my zsh
-  fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src
+  zsh_completions_dir="${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src"
+  if [[ -d "$zsh_completions_dir" ]]; then
+    fpath+=("$zsh_completions_dir")
+  fi
   autoload -U compinit && compinit
-  source "$ZSH/oh-my-zsh.sh"
+  if [[ -r "$ZSH/oh-my-zsh.sh" ]]; then
+    source "$ZSH/oh-my-zsh.sh"
+  fi
 fi
 
 # zoxide
@@ -121,9 +126,9 @@ fi
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+[[ -r "$HOME/.p10k.zsh" ]] && source "$HOME/.p10k.zsh"
 
-source ~/.aliases
+[[ -r "$HOME/.aliases" ]] && source "$HOME/.aliases"
 
 # editors
 export EDITOR="nvim"
@@ -155,12 +160,23 @@ if command -v pyenv >/dev/null 2>&1; then
 fi
 
 # For git ssh
-eval "$(ssh-agent -s)" &> /dev/null
+if command -v ssh-agent >/dev/null 2>&1 && [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
+  eval "$(ssh-agent -s)" >/dev/null
+fi
 export PATH="$HOME/.local/bin:$PATH"
 
 # asdf
-if [ -f /opt/homebrew/opt/asdf/libexec/asdf.sh ]; then
+asdf_sh=""
+if command -v brew >/dev/null 2>&1; then
+  asdf_sh="$(brew --prefix asdf 2>/dev/null)/libexec/asdf.sh"
+fi
+
+if [[ -r "$asdf_sh" ]]; then
+  . "$asdf_sh"
+elif [[ -r /opt/homebrew/opt/asdf/libexec/asdf.sh ]]; then
   . /opt/homebrew/opt/asdf/libexec/asdf.sh
+elif [[ -r /usr/local/opt/asdf/libexec/asdf.sh ]]; then
+  . /usr/local/opt/asdf/libexec/asdf.sh
 fi
 # asdf end
 

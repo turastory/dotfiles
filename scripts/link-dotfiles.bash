@@ -60,7 +60,7 @@ for package_dir in "$STOW_DIR"/*/; do
                 mkdir -p "$target_dir"
             fi
         fi
-    done < <(find "$package_dir" -type f -not -name '.skipstow' -print0)
+    done < <(find "$package_dir" \( -type f -o -type l \) -not -name '.skipstow' -print0)
 
     if $DRY_RUN; then
         log_dry "Would stow: $package"
