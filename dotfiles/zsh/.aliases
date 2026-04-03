@@ -13,3 +13,6 @@ alias gl='git l'
 alias gpl='git pull'
 alias gsd='git -c delta.side-by-side=true diff'
 alias gsds='git -c delta.side-by-side=true diff --staged'
+
+alias mypr="gh pr checkout $(gh pr list --author=yoonho-alan --limit 1 --json number | jq '.[0].number')"
+alias makepr="gh pr create -w"
