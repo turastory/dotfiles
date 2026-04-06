@@ -141,8 +141,8 @@ alias nv="nvim"
 
 # nvm
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+[[ -r "$NVM_DIR/nvm.sh" ]] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[[ -r "$NVM_DIR/bash_completion" ]] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 # pnpm
 export PNPM_HOME="$HOME/Library/pnpm"
@@ -180,17 +180,13 @@ elif [[ -r /usr/local/opt/asdf/libexec/asdf.sh ]]; then
 fi
 # asdf end
 
-# Added by LM Studio CLI (lms)
-export PATH="$PATH:$HOME/.lmstudio/bin"
-# End of LM Studio CLI section
-
 # golang
 if command -v go >/dev/null 2>&1; then
   export PATH=$PATH:$(go env GOPATH)/bin
 fi
 
 # bun completions
-[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
+[[ -r "$HOME/.bun/_bun" ]] && source "$HOME/.bun/_bun"
 
 # bun
 export BUN_INSTALL="$HOME/.bun"
@@ -219,5 +215,5 @@ qc() {
 # <<< quickcommand zsh integration <<<
 
 # local-only config
-[ -s "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
+[[ -r "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
 
