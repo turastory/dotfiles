@@ -15,4 +15,5 @@ alias gsd='git -c delta.side-by-side=true diff'
 alias gsds='git -c delta.side-by-side=true diff --staged'
 
 alias mypr='gh pr checkout $(gh pr list --author=yoonho-alan --limit 1 --json number | jq ".[0].number")'
+alias myprs='gh pr list --author=yoonho-alan'
 alias makepr='gh pr create -w'
