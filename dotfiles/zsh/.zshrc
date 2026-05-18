@@ -131,8 +131,6 @@ fi
 [[ -r "$HOME/.aliases" ]] && source "$HOME/.aliases"
 
 # editors
-export EDITOR="nvim"
-export VISUAL="nvim"
 alias vim="nvim"
 alias vi="nvim"
 alias vimdiff="nvim -d"
@@ -140,21 +138,10 @@ alias v="nvim"
 alias nv="nvim"
 
 # nvm
-export NVM_DIR="$HOME/.nvm"
 [[ -r "$NVM_DIR/nvm.sh" ]] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [[ -r "$NVM_DIR/bash_completion" ]] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-# pnpm
-export PNPM_HOME="$HOME/Library/pnpm"
-case ":$PATH:" in
-  *":$PNPM_HOME:"*) ;;
-  *) export PATH="$PNPM_HOME:$PATH" ;;
-esac
-# pnpm end
-
 # pyenv
-export PYENV_ROOT="$HOME/.pyenv"
-[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
 if command -v pyenv >/dev/null 2>&1; then
   eval "$(pyenv init - zsh)"
 fi
@@ -163,7 +150,6 @@ fi
 if command -v ssh-agent >/dev/null 2>&1 && [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
   eval "$(ssh-agent -s)" >/dev/null
 fi
-export PATH="$HOME/.local/bin:$PATH"
 
 # asdf
 asdf_sh=""
@@ -187,10 +173,6 @@ fi
 
 # bun completions
 [[ -r "$HOME/.bun/_bun" ]] && source "$HOME/.bun/_bun"
-
-# bun
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
 
 # >>> quickcommand zsh integration >>>
 qc() {
@@ -216,4 +198,3 @@ qc() {
 
 # local-only config
 [[ -r "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
-
