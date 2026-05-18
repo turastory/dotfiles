@@ -1,9 +1,7 @@
 path_prepend() {
   if [ -d "$1" ]; then
-    case ":$PATH:" in
-      *":$1:"*) ;;
-      *) export PATH="$1:$PATH" ;;
-    esac
+    path=("$1" ${path:#$1})
+    export PATH
   fi
 }
 
@@ -30,6 +28,7 @@ export PNPM_HOME="$HOME/Library/pnpm"
 path_prepend "$PNPM_HOME"
 
 export PYENV_ROOT="$HOME/.pyenv"
+path_prepend "$PYENV_ROOT/shims"
 path_prepend "$PYENV_ROOT/bin"
 
 path_prepend "$HOME/.local/bin"
