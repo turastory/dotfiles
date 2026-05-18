@@ -11,7 +11,7 @@ Uses [GNU Stow](https://www.gnu.org/software/stow/) for symlink management. Each
 | **Shell** | zsh, oh-my-zsh, powerlevel10k, aliases |
 | **Git** | gitconfig + git-delta config |
 | **Editor** | Neovim (Lua config + lazy.nvim plugins) |
-| **Terminal** | tmux, iTerm2 (`DynamicProfiles`) |
+| **Terminal** | tmux, Ghostty |
 | **Keyboard** | Karabiner-Elements |
 | **AI Tools** | Claude Code (CLAUDE.md, settings) |
 | **Dev Tools** | gh CLI, asdf/tool-versions |
@@ -64,15 +64,11 @@ dotfiles/
     ├── karabiner/.config/    # karabiner.json
     ├── claude/.claude/       # CLAUDE.md
     ├── gh/.config/gh/        # config.yml
-    └── iterm2/               # Dynamic profile package for iTerm2
-        └── Library/
-            └── Application Support/
-                └── iTerm2/
-                    └── DynamicProfiles/
-                        └── Profiles.json
+    └── ghostty/.config/ghostty/
+        └── config            # Ghostty terminal config
 ```
 
-Note: iTerm2 auto-loads JSON files from `~/Library/Application Support/iTerm2/DynamicProfiles`; restart iTerm2 after install so the profile appears. The shared setup also installs `font-meslo-for-powerlevel10k`, `font-monaspace`, and `font-inter` via Homebrew, so restarting iTerm2 after `make brew` or `make setup` helps it pick up newly installed fonts.
+Note: Ghostty reads config from `~/.config/ghostty/config`. The shared setup also installs `font-meslo-for-powerlevel10k`, `font-monaspace`, and `font-inter` via Homebrew, so restarting Ghostty after `make brew` or `make setup` helps it pick up newly installed fonts.
 
 ## Homebrew sync workflow
 
