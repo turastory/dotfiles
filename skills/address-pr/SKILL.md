@@ -25,7 +25,7 @@ Speed up **responding to PR review feedback** by: checking out the PR locally, *
 
 ## Prerequisites
 
-1. Run `gh auth status`. If authentication fails or the wrong account is active, follow repo conventions (e.g. `gh auth switch --user <user>`) and retry.
+1. Run `gh auth status`. If authentication fails or the wrong account is active, explain which account appears active and which repo/account is needed. Switch accounts only when the user or repo instructions make the intended account clear, then retry.
 2. Prefer running from the **target repository** clone (or worktree). Resolve `owner/repo` via `gh repo view --json nameWithOwner -q .nameWithOwner` when needed.
 
 ## Prefer git worktrees
@@ -34,7 +34,7 @@ Speed up **responding to PR review feedback** by: checking out the PR locally, *
 
 - **Location:** Prefer a **project-local** path under **`.worktrees/`** at the repository root (e.g. `.worktrees/pr-26593/`). Use `worktrees/` only if the project already standardizes on it; follow **using-git-worktrees** for directory rules and safety checks (`git check-ignore`, `.gitignore` if needed).
 - Typical pattern from the **main repo** root: fetch the PR head into a local branch ref, then `git worktree add .worktrees/pr-<number> <branch>` (or an equivalent path under `.worktrees/`) and run subsequent `gh` / file reads from that path (or pass `-C <path>` where supported).
-- **If** the user explicitly wants to stay in the current directory or a worktree is impractical (e.g. single shallow clone), fall back to `gh pr checkout` in place and state that trade-off briefly.
+- **If** the user explicitly wants to stay in the current directory or a worktree is impractical (e.g. single shallow clone), fall back to `gh pr checkout` in place only after checking the active clone's state. Run `git status --short`; if there are local changes, stop and ask the user whether to proceed because checkout may switch branches in the active clone.
 
 ## Workflow
 
@@ -47,7 +47,13 @@ Accept either:
 
 **Preferred:** check out via a **worktree** under **`.worktrees/`** (see § Prefer git worktrees).
 
-**Fallback** when not using a worktree: check out the branch in the current clone:
+**Fallback** when not using a worktree: first verify the current clone is safe to switch:
+
+```bash
+git status --short
+```
+
+If there are local changes, stop and ask the user whether to proceed. If the working tree is clean, check out the branch in the current clone:
 
 ```bash
 gh pr checkout <number-or-url>
@@ -89,26 +95,29 @@ gh api graphql -f query='
   --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not)'
 ```
 
+If `pageInfo.hasNextPage` is true for review threads or nested comments, continue paginating until all nodes are collected. Do not silently rely on the first page.
+
 For PR conversation comments and review summaries (which are not thread-scoped and have no resolved state), include them all.
 
-**Do not dedupe.** Every unresolved comment goes into the report as its own entry — even if two reviewers say similar things, keep both so the user can see the full picture.
+**Do not dedupe away feedback.** Every unresolved comment must remain visible somewhere in the report — even if two reviewers say similar things — so the user can see the full picture. Separate clearly actionable items from FYI / praise / empty approval summaries; non-actionable entries may be listed in a compact appendix.
 
 ### 3. Build the plan (one entry per comment)
 
-The report must include **every** unresolved comment collected in step 2 — one entry per comment, no summarization-away, no merging "similar" items. For each entry, produce:
+The report must include **every** unresolved comment collected in step 2 — one entry per actionable comment, no summarization-away, no merging "similar" items. For each actionable entry, produce:
 
 1. **Reference**: reviewer (or bot) login, source type (inline thread / PR conversation / review summary), and **code location** when applicable — file path and line number (use `line` for inline comments; fall back to `originalLine` if the line has shifted). Format code locations as `<path>:L<line>` so the user can jump directly to the referenced position. Include the comment URL when available.
-2. **Original text (verbatim)**: the comment `body` as-is, quoted in a markdown blockquote. Do not paraphrase or trim. If the comment is long, still include it fully.
+2. **Original text (verbatim)**: the comment `body` as-is, quoted in a markdown blockquote. Do not paraphrase or trim normal-length comments. If the comment is very long, include a concise verbatim excerpt, keep the URL, and state that the full text is available at the linked comment.
 3. **Summary**: what the reviewer is asking for, in plain language (this is *in addition to* the verbatim text, not a replacement).
 4. **Suggested fix**: concrete approach (files to touch, pattern to apply, tests to add/update). For comments that are pure praise or non-actionable ("nice!", "lgtm"), state explicitly that no action is needed.
 5. **Suggested reply (draft)**: a **short** reply the user could post back to the reviewer — 1–2 sentences max, plain prose, no boilerplate ("Thanks for the review!"). Always wrap the full draft reply in double quotes. Match the comment's language (e.g. Korean comment → Korean reply). Use inline code quotes only where they are necessary for exact identifiers, paths, commands, or symbols; avoid code quotes for ordinary prose. Concrete examples: "맞는 지적이라 `foo`로 변경했습니다.", "의도된 동작입니다. `bar`는 nullable이라 체크가 필요합니다.", "다음 PR에서 별도로 다루겠습니다." This is a **draft only**; the skill never posts it.
 6. **Effort / risk** (short): trivial / moderate / larger; note if it might conflict with other items.
 
-Group optional: by severity (blocking vs nit), or by file — whichever makes faster review for the user. Grouping must not drop or collapse entries.
+Group optional: by severity (blocking vs nit), or by file — whichever makes faster review for the user. Grouping must not drop or collapse actionable entries. Put non-actionable FYI / praise / empty approval summaries in a compact appendix when present.
 
 ### Report style and example
 
 Use a consistent, scan-friendly report. Start with a short note about checkout/worktree status, then list the actionable entries. Keep the original comment verbatim and do not collapse multiple unresolved comments into one item.
+Use the user's language for report labels and explanations when clear from the conversation.
 
 Recommended structure:
 
@@ -192,7 +201,7 @@ Present a **checklist** the user can answer explicitly, for example:
 
 ### 5. Handoff
 
-After confirmation, the next step is normal implementation work (only for approved items), following the user’s usual commit/PR conventions—**outside** the constraints of § Hard constraints once the user requests commits/pushes.
+After confirmation, the next step is normal implementation work for approved items only. Posting GitHub comments, committing, pushing, or opening/updating PRs still requires a separate explicit user request.
 
 ## Anti-patterns
 
