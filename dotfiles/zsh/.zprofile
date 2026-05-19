@@ -23,10 +23,6 @@ path_prepend() {
 # `brew shellenv` prepends Homebrew, so restore version-manager priority.
 path_prepend "$HOME/.asdf/shims"
 
-export PYENV_ROOT="$HOME/.pyenv"
-path_prepend "$PYENV_ROOT/shims"
-path_prepend "$PYENV_ROOT/bin"
-
 export NVM_DIR="$HOME/.nvm"
 if [ -r "$NVM_DIR/alias/default" ]; then
   nvm_default_version="$(cat "$NVM_DIR/alias/default")"

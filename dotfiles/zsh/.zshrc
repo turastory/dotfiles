@@ -141,11 +141,6 @@ alias nv="nvim"
 [[ -r "$NVM_DIR/nvm.sh" ]] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [[ -r "$NVM_DIR/bash_completion" ]] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-# pyenv
-if command -v pyenv >/dev/null 2>&1; then
-  eval "$(pyenv init - zsh)"
-fi
-
 # For git ssh
 if command -v ssh-agent >/dev/null 2>&1 && [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
   eval "$(ssh-agent -s)" >/dev/null
