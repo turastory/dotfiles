@@ -105,7 +105,7 @@ For PR conversation comments and review summaries (which are not thread-scoped a
 
 The report must include **every** unresolved comment collected in step 2 — one entry per actionable comment, no summarization-away, no merging "similar" items. For each actionable entry, produce:
 
-1. **Reference**: reviewer (or bot) login, source type (inline thread / PR conversation / review summary), and **code location** when applicable — file path and line number (use `line` for inline comments; fall back to `originalLine` if the line has shifted). Format code locations as `<path>:L<line>` so the user can jump directly to the referenced position. Include the comment URL when available.
+1. **Reference**: reviewer (or bot) login, source type (inline thread / PR conversation / review summary), and **code location** when applicable — file path and line number (use `line` for inline comments; fall back to `originalLine` if the line has shifted). Format code locations as `<path>:<line>` so the user can jump directly to the referenced position. Include the comment URL when available.
 2. **Original text (verbatim)**: the comment `body` as-is, quoted in a markdown blockquote. Do not paraphrase or trim normal-length comments. If the comment is very long, include a concise verbatim excerpt, keep the URL, and state that the full text is available at the linked comment.
 3. **Summary**: what the reviewer is asking for, in plain language (this is *in addition to* the verbatim text, not a replacement).
 4. **Suggested fix**: concrete approach (files to touch, pattern to apply, tests to add/update). For comments that are pure praise or non-actionable ("nice!", "lgtm"), state explicitly that no action is needed.
@@ -127,7 +127,7 @@ PR <number> is checked out on <branch/worktree status>. I skipped resolved threa
 ## Response Plan
 
 ### 1. <author> <source type>
-Reference: `<path>:L<line>`  
+Reference: `<path>:<line>`  
 URL: <comment URL>
 
 Original:
@@ -154,7 +154,7 @@ PR 27727 is already on the matching head branch, so I did not check it out again
 ## Response Plan
 
 ### 1. cursor inline thread
-Reference: `internal-products/frontends/backoffice/src/pages/event/management/group/components/event-group-participation/useEventGroupParticipationForm.ts:L184`  
+Reference: `internal-products/frontends/backoffice/src/pages/event/management/group/components/event-group-participation/useEventGroupParticipationForm.ts:184`  
 URL: https://github.com/ridi/ridi/pull/27727#discussion_r3245679381
 
 Original:
@@ -171,7 +171,7 @@ Suggested reply: "`onDelete` 실패 시에도 snackbar로 오류가 보이도록
 Effort / risk: trivial.
 
 ### 2. gyu-kang inline thread
-Reference: `internal-products/frontends/backoffice/src/components/forms/ListField.tsx:L148`  
+Reference: `internal-products/frontends/backoffice/src/components/forms/ListField.tsx:148`  
 URL: https://github.com/ridi/ridi/pull/27727#discussion_r3246587825
 
 Original:
