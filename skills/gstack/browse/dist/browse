@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")" && pwd -P)"
+export BROWSE_SERVER_SCRIPT="$DIR/server-node.mjs"
+exec "$DIR/browse.bin" "$@"
