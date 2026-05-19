@@ -104,8 +104,9 @@ Why this is preferred:
 
 ## Fixtures and DB setup
 
-- Prefer builders from `ridi-backends/test/builders` when a builder already exists
-- Keep fixture rows minimal and only fill columns the scenario needs
+- Use builders from `ridi-backends/test/builders` when a builder exists. Prefer builder chains over raw fixture objects so defaults stay centralized and tests show only the scenario-specific differences.
+- In builder chains, override only fields that are required for the scenario, the code path under test, or the assertion. Do not fill incidental columns such as `service_id`, `pg_tid`, `created_at`, `pay_id`, or `pay_type` just because the table has them; let the builder defaults cover unrelated data.
+- Keep domain-signaling fields when they make the fixture easier to understand, even if the query does not read them directly. For example, `tb_money.amount` can be worth setting next to `remain_amount` because it explains the money row's original amount and remaining balance.
 - Avoid manually assigning auto-increment primary keys unless the test truly depends on a fixed id
 - After a DB mutation, query back and assert the resulting row shape instead of only checking that a function was called
 
