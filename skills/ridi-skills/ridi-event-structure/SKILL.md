@@ -47,6 +47,61 @@ Use it before adding a new event, subscriber, or backfill job.
 - Consumer exists but nothing happens: check outbox, publisher, group status, then subscriber code
 - Same topic consumed by multiple services: confirm separate `groupId` usage
 
+## Kafka CLI (topic / test message)
+
+Implementation: `backends/src/cli/cmds/kafka.ts`. Run from `backends/`.
+
+Broker selection follows `NODE_ENV` via `backends/src/kafka/config/{nodeEnv}.json` (convict in `utils/config.ts`):
+
+| `NODE_ENV` | Brokers |
+|---|---|
+| `local` (default) | `localhost:9092` (`KAFKA_BROKERS` overrides) |
+| `development` | dev r-bus cluster (`development.json`) |
+| `production` | prod r-bus cluster — do not use for manual testing |
+
+For **dev cluster** commands, prefix with `NODE_ENV=development`. For **local Docker Kafka**, use default `local` (or omit `NODE_ENV`) after `pnpm docker:infra`.
+
+```bash
+cd backends
+
+# Dev cluster
+NODE_ENV=development pnpm cli kafka list-topics
+NODE_ENV=development pnpm cli kafka create <topic>           # default: -p 10 -r 3
+NODE_ENV=development pnpm cli kafka produce <topic> '<json>'
+NODE_ENV=development pnpm cli kafka consume <topic> --fromBeginning
+
+# Local Docker (single broker — lower replication)
+pnpm cli kafka create <topic> -r 1 -p 3
+pnpm cli kafka produce <topic> '<json>'
+pnpm cli kafka consume <topic> --fromBeginning
+```
+
+`pnpm cli:dev` (`DOT_ENV=.env.dev pnpm cli`) loads dev DB/env files; it does **not** set `NODE_ENV`. Use it when a CLI command also needs `.env.dev` (e.g. `trigger-event-check-in`), and still set `NODE_ENV=development` for dev Kafka.
+
+### Test message shape
+
+Subscribers parse `JSON.parse(value).data` (`subscribers/utils.ts`). Match the event’s `topic` and `type` from `r-bus/<event>/config/`.
+
+Minimum (handler-only smoke test):
+
+```json
+{"data":{"userIdx":1}}
+```
+
+Production-like (CloudEvent — preferred when validators or `type` matter):
+
+```json
+{"specversion":"1.0","id":"cli-test-1","source":"cli","type":"com.ridi.cart","data":{"userIdx":1}}
+```
+
+`produce` takes the JSON as a single shell argument (quote it). `consume` prints the parsed `data` field.
+
+### Other useful subcommands
+
+`metadata`, `offset`, `describe-groups`, `get-message`, `list-groups` — see `pnpm cli kafka --help`.
+
+Outbox-backed flows (real publish path) may be better exercised with `pnpm cli trigger-event-check-in` (dev only, requires `NODE_ENV=development`) than raw `produce`.
+
 ## Reference documents
 
 For detail beyond this index, open:
@@ -60,3 +115,4 @@ For detail beyond this index, open:
 - `ridi-project-structure`
 - `ridi-test-guides`
 - `ridi-batch-commands`
+- `kafka-dev-produce`

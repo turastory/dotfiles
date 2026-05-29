@@ -7,7 +7,7 @@ description: Use when writing or reviewing RIDI backend tests for subscribers, A
 
 This skill is a backend test convention guide for the monorepo.
 
-Use it when adding or reviewing tests under `backends/`, especially for subscribers, API handlers, DB-backed flows, and module-boundary stubs.
+Use it when adding or reviewing tests under `backends/` or `internal-products/backends/`, especially for subscribers, API handlers, DB-backed flows, and module-boundary stubs.
 
 ## When to use
 
@@ -107,20 +107,40 @@ Why this is preferred:
 - Use builders from `ridi-backends/test/builders` when a builder exists. Prefer builder chains over raw fixture objects so defaults stay centralized and tests show only the scenario-specific differences.
 - In builder chains, override only fields that are required for the scenario, the code path under test, or the assertion. Do not fill incidental columns such as `service_id`, `pg_tid`, `created_at`, `pay_id`, or `pay_type` just because the table has them; let the builder defaults cover unrelated data.
 - Keep domain-signaling fields when they make the fixture easier to understand, even if the query does not read them directly. For example, `tb_money.amount` can be worth setting next to `remain_amount` because it explains the money row's original amount and remaining balance.
-- Avoid manually assigning auto-increment primary keys unless the test truly depends on a fixed id
+- Prefer auto-increment for primary keys in both `dbFixtureHooks` / `dbFixtureHooksEach` and inline inserts: omit builder `.id(...)` and hardcoded `id` in fixture rows unless the scenario truly needs a fixed id (e.g. matching pre-seeded data or asserting a specific id).
+- For related rows, wire foreign keys from the parent row’s assigned id — not from a hand-picked constant on both parent and child.
 - After a DB mutation, query back and assert the resulting row shape instead of only checking that a function was called
 
-### FK-dependent fixtures with `dbFixtureHooks`
+### `dbFixtureHooks` vs `dbFixtureHooksEach`
 
-When a table has a `FOREIGN KEY ... ON DELETE CASCADE` (e.g. `tb_event_participation_group.event_group_id → tb_event_group.id`), you cannot hardcode the child's FK column and let MySQL assign the parent id independently — the insert fails with `Cannot add or update a child row: a foreign key constraint fails`.
+Both live in `ridi-backends/test/utils`. The first tuple element is the **fixture alias** (see below).
 
-Pattern:
+| Helper | Mocha hooks | Runs |
+| --- | --- | --- |
+| `dbFixtureHooks` | `before` / `after` | Once per `describe` |
+| `dbFixtureHooksEach` | `beforeEach` / `afterEach` | Before every `it` |
 
-1. Put the parent fixture earlier in the `dbFixtureHooks(...)` tuple list so it inserts first.
-2. Use the `(results) => [...]` callback form for the child fixture and read `results.<parent_fixture_name>[0].id` to wire the FK.
-3. Don't hand-pick an `event_group_id: 10` style constant on the child — let the builder default PK to `0` (MySQL AUTO_INCREMENT) and always reference `results[...]`.
+- List parent fixtures before children; on the child, use `(results) => [...]` and read the parent pk from `results.<alias>`.
+- **`dbFixtureHooks`:** use at the top level, or inside a `describe` when several `it` blocks can share the same DB rows for the whole block.
+- **`dbFixtureHooksEach`:** use when each test needs a fresh insert, or when adding fixtures in a **nested** `describe` under a parent that already uses `dbFixtureHooksEach`.
 
-See `backends/src/apps/gql/resolvers/typeResolvers/eventGroup/resolver.test.ts` (`with DB-backed participation group`) for the `tb_event_group` → `tb_event_participation_group` → `tb_event_participation_stamp` chain as a reference.
+**Nested describes:** if the parent suite already uses `dbFixtureHooksEach`, child fixture setup must use **`dbFixtureHooksEach`**, not `dbFixtureHooks`. Mocha runs a child `before` before the parent’s `beforeEach`, so `dbFixtureHooks` can insert into the same table first and collide with the parent’s fixed ids (e.g. auto-increment row taking `id=1` before the parent inserts `id=1`).
+
+### Fixture alias
+
+- Prefer the **table name** as the alias: `tb_event_group`, `tb_event_participation`.
+- Avoid domain nicknames (`participationGroup`, `participationStamps`) unless the file already standardizes on something else.
+- Access rows as `fixture.tb_event_group[0].id`, and reference other fixtures in callbacks as `results.tb_event_group[0].id`.
+
+### Describe layout (fixture vs assertion)
+
+- Put `dbFixtureHooks` / `dbFixtureHooksEach` on a **nested `describe`** per scenario (e.g. `when participation exists`), and keep `it` blocks focused on calls + assertions.
+- Each nested `describe` should be readable on its own: duplicate overlapping fixture definitions when scenarios differ, instead of a shared `insertParticipationGroup()` that forces readers to jump around.
+- Prefer `dbFixtureHooksEach` + builders over manual `beforeEach` + `ridiPrimary().insert(...)` when the scenario is table-shaped fixture data.
+
+### Inline inserts
+
+When not using the hooks, insert the parent first (`insertAndGetIdentifiers` or a follow-up query), then set child FKs and locate API results using the returned id.
 
 ## User fixtures
 
@@ -152,13 +172,16 @@ Direct imports are more explicit and match common usage in existing tests.
 
 - Stub side effects at the boundary you own, not deep inside unrelated helpers
 - Do not bloat one test with multiple behaviors that should be separate cases
-- If several cases differ only in input shape, share setup helpers instead of copying fixture blocks
+- If several `it` blocks differ only in **inputs or assertions** with the **same DB rows**, share one fixture `describe` or helper
+- If cases need **different DB rows**, use separate nested `describe` blocks with their own fixture hooks (duplication is fine)
 - Keep tests readable without requiring the reader to mentally reconstruct the payload from many small assertions
 
 ## Good files to copy patterns from
 
 - `backends/src/subscribers/services/amplitude-event/signUp/userSignupVerified.test.ts`
 - `backends/src/subscribers/services/braze-event/signUp/userSignupVerified.test.ts`
+- `internal-products/backends/src/backoffice/controllers/event/management/event-participation/index.test.ts` — `dbFixtureHooksEach` with table-name aliases and `(results)` chains
+- `internal-products/backends/src/backoffice/controllers/event/management/event-group/index.test.ts` — nested `describe` + per-scenario `dbFixtureHooksEach` under a parent fixture suite
 
 ## Common mistakes
 
@@ -168,6 +191,10 @@ Direct imports are more explicit and match common usage in existing tests.
 - Rewriting feature flag stubs manually when a helper already exists
 - Importing `Tables` for a single row type
 - Writing oversized fixtures that hide which columns actually matter
+- Hardcoding auto-increment PKs or FKs when only parent–child linkage is needed
+- Using `dbFixtureHooks` inside a nested `describe` whose parent already uses `dbFixtureHooksEach` (hook order / PK collisions)
+- Fixture aliases that do not match table names (`participationGroup` instead of `tb_event_group`)
+- Putting large insert blocks inside `it` or a shared helper when `dbFixtureHooksEach` on a nested `describe` would separate fixture from assertion
 
 ## Related skills
 
