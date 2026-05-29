@@ -33,3 +33,5 @@ export BUN_INSTALL="$HOME/.bun"
 path_prepend "$BUN_INSTALL/bin"
 
 unset -f path_prepend
+
+alias assume=". assume"
