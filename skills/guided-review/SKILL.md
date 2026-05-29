@@ -1,13 +1,13 @@
 ---
-name: review-agent-work
-description: Helps review agent-written code by identifying the best review entrypoint, review direction, key change points, convention fit, reference files, unusual implementation notes, and meaningful commit ranges for uncommitted work. Use after agent work is done, when the user manually requests review guidance, asks where to start reviewing, whether code follows codebase conventions, or wants to resolve understanding debt from generated changes.
+name: guided-review
+description: Helps review code changes by identifying the best review entrypoint, review direction, key change points, convention fit, reference files, unusual implementation notes, and meaningful commit ranges for uncommitted work. Use when the user invokes /guided-review, asks for review guidance, wants to know where to start reviewing, whether code follows codebase conventions, or wants to resolve understanding debt from recent changes.
 ---
 
-# Review Agent Work
+# Guided Review
 
 ## Purpose
 
-Help the user review agent-written code more effectively and resolve understanding debt quickly.
+Help the user review code changes more effectively and resolve understanding debt quickly.
 
 Use this skill when:
 - Some implementation work has just been completed.

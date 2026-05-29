@@ -181,7 +181,7 @@ Summary: The condition should reflect the optional-number type directly.
 
 Suggested fix: Replace `typeof visibleRowCount === 'number'` with `visibleRowCount !== undefined` wherever the visible-row branch is selected.
 
-Suggested reply: "맞습니다. optional number 의도가 더 잘 드러나도록 조건을 바꾸겠습니다."
+Suggested reply: "맞습니다. optional number 의도가 더 잘 드러나도록 조건을 바꿀게요."
 
 Effort / risk: trivial.
 
