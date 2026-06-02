@@ -4,17 +4,9 @@
 - 테스트, 빌드 등 스크립트를 실행하기 전에 먼저 해당 프로젝트의 패키지 매니저 정의 파일을 확인할 것 (package.json, Cargo.toml 등)
 - 작업 완료 후 CLAUDE.md / AGENTS.md에 업데이트할 내용(새로운 컨벤션, 패턴, 명령어 등)이 있다면 사용자에게 알려줄 것
 
-## 구현
+## RIDI repo 테스트
 
-Implementation strategy when you're not a subagent:
-
-1. You're the orchestrator. You don't code or inspect the codebase by yourself (except a small fixes), instead you delegate implementation or inspection to subagents with Composer 2.5 model. You should assign a clear role and provide enough context for those agents.
-2. Once you've done the implementation (big chunks), do not immediately tell the user you're finished. Instead, Do /ultimate-review with one of these random models: "GPT-5.5 Medium" / "Opus 4.7 Medium" / "Composer 2.5"
-3. After everything's finished, write a simple work log under .cursor/work-logs/ following the format.
-
-Implementation strategy when you're a subagent:
-
-1. Don't edit or remove files beyond requested scope. Only touches scope that are assigned to
+`ridi` monorepo(`backends/`, `internal-products/backends/` 등)에서 테스트를 **작성·수정·리뷰**할 때는 반드시 `~/.agents/skills/ridi-skills/ridi-test-guides/SKILL.md`를 먼저 읽고, 그 안의 컨벤션(fixture 배치, assertion, feature flag describe 분리, query vs API 역할, `dbFixtureHooks` 사용 등)을 빠짐없이 반영할 것. 스킬과 충돌하는 축약·헬퍼·중복 시나리오는 피하고, 기존 레퍼런스 테스트 파일 패턴을 우선 따른다. 오케스트레이터가 RIDI backend 테스트 작업을 서브에이전트에 위임할 때도, 위임 프롬프트에 `ridi-test-guides`를 읽고 따르도록 명시할 것.
 
 ## Lint
 
@@ -41,7 +33,9 @@ Lint 에러가 발생하면 먼저 다음 절차를 따른다.
 
 ## Git
 
+- 브랜치 이름은 `productpay/<feature>/<details>` 형식을 따른다. 예: `productpay/event-participation/progress-list-backends` (`productpay`는 팀명).
 - 커밋 메시지는 `feat: add event participation table`처럼 간결한 한 줄 형태 사용. 가급적 multi-line commit은 피할 것.
+- merge conflict 해결 후 머지를 마무리(conclude)하는 커밋은 반드시 `--no-verify` 옵션으로 실행해서 pre-commit hook(lint/formatter)이 돌지 않게 할 것. 머지에는 다른 브랜치에서 들어온 대량의 변경이 포함되어 lint-staged hook이 무관한 파일에서 실패하거나 `[KILLED]`되며 index가 손상될 수 있다. (실제로 hook이 죽으면서 git object가 깨져 `git status`가 `fatal: unable to read <sha>`로 실패한 사례 있음 → `git reset --hard HEAD` + `git clean -fd`로 복구 후 재머지 필요했음)
 
 ## PR 코멘트 답글
 
