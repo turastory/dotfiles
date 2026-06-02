@@ -1,200 +1,169 @@
 ---
 name: ridi-test-guides
-description: Use when writing or reviewing RIDI backend tests for subscribers, APIs, DB fixtures, feature flags, Knex types, or r-bus boundaries, especially when you need the local assertion and setup conventions.
+description: Use when writing or reviewing RIDI backend tests (subscribers, APIs, Knex queries, DB fixtures, feature flags, r-bus stubs). Covers assertion style, fixture layout, query vs API test roles, and local setup conventions.
 ---
 
 # RIDI Test Guides
 
-This skill is a backend test convention guide for the monorepo.
-
-Use it when adding or reviewing tests under `backends/` or `internal-products/backends/`, especially for subscribers, API handlers, DB-backed flows, and module-boundary stubs.
+Backend test conventions for `backends/` and `internal-products/backends/`. GraphQL resolver tests under `backends/src/apps/gql/resolvers/**/*.test.ts` follow the same patterns; see `ridi-graphql-structure` for layout.
 
 ## When to use
 
-- You are stubbing an `r-bus` publish function or another module boundary
-- You are asserting a nested event, API, or DB-shaped payload
-- You are writing subscriber tests around `eachBatch`
-- You are setting up DB fixtures, users, or feature flags
-- You are choosing Knex table types in test code
-- You want to match the style already used in backend tests
-- You are writing or reviewing **GraphQL resolver tests** under `backends/src/apps/gql/resolvers/**/*.test.ts` (follow the same Mocha/Chai/Sinon patterns; see `ridi-graphql-structure` for where resolvers live)
+- Stubbing `r-bus` or other module boundaries
+- Asserting nested event, API, or DB-shaped payloads
+- Subscriber `eachBatch` setup
+- DB fixtures, users, feature flags, Knex table types
+- Knex query modules (`*.queries.test.ts`) or HTTP/API integration tests
 
-## Test shape
+## Test shape and tooling
 
-- Wrap files with `describe(testName(), () => { ... })` when the surrounding test utilities already follow that pattern
-- Group cases by behavior, not by implementation detail
-- Keep each `it(...)` focused on one scenario
-- Prefer `async` and `await` over manual promise chaining
+- `describe(testName(), () => { ... })` when surrounding utilities use it
+- Group by behavior; one scenario per `it`; prefer `async`/`await`
+- Mocha + Chai + Sinon; shared helpers from `ridi-backends/test/utils` and `ridi-backends/apps/test/utils` before one-off setup
+- Supertest for HTTP-level checks when the app/router is exposed that way
 
-## Tooling defaults
+## Query tests vs API tests
 
-- Use Mocha and Chai for suite structure and assertions
-- Use Sinon for stubs and spies
-- Use shared helpers from `ridi-backends/test/utils` and `ridi-backends/apps/test/utils` before adding one-off setup
-- Use Supertest for HTTP-level checks when the app or router is exposed that way
+| Layer | File | Focus |
+| --- | --- | --- |
+| Knex query module | `queries.test.ts` | SQL shape, filters, sort order via `toQuery()` (or equivalent) — lock the DB contract |
+| Route/handler | `index.test.ts` (Supertest) | Auth, response shape, feature-flag branches, domain post-processing |
+
+Do not duplicate full SQL assertions in API tests when `queries.test.ts` already covers them.
 
 ## r-bus stubs
 
-Import the specific event module instead of the top-level barrel.
-
-Use:
+Import the specific event module, not the barrel:
 
 ```ts
 import * as rBusMarketingAgreementChanged from 'ridi-backends/r-bus/marketingAgreementChanged';
 ```
 
-Avoid:
-
-```ts
-import * as rBus from 'ridi-backends/r-bus';
-```
-
-This keeps the stub surface narrow and avoids accidental coupling to unrelated exports.
-
 ## Payload assertions
 
-When the output shape is deterministic, prefer one explicit full-shape assertion:
+When output is deterministic, prefer one full-shape check:
 
 ```ts
 expect(actualPayload).to.deep.equal(expectedPayload);
 ```
 
-Prefer this over splitting the check into many smaller assertions such as:
+Build one `expected` mirroring production shape. Use partial checks only for non-deterministic fields (timestamps, generated ids).
 
-- `to.have.lengthOf(...)`
-- `to.deep.include(...)`
-- `to.be.a('string')` for fields that can be asserted exactly
+## Subscriber `eachBatch`
 
-Why this is preferred:
-
-- The final contract is readable in one place
-- Payload updates are easier when the structure changes
-- Redundant precursor checks disappear because the full-shape mismatch already points to the problem
-
-## Practical assertion rule
-
-- Build one `expected` object or array that mirrors the production shape
-- Assert the full shape with `to.deep.equal` whenever practical
-- Fall back to partial assertions only for intentionally non-deterministic fields such as timestamps or generated ids
-
-## Subscriber tests and `eachBatch`
-
-When calling `eachBatch` in tests:
-
-- Include only the fields the code under test actually reads
-- Use `as Message[]` when that avoids boilerplate for unused keys
-- Extract and guard `eachBatch` with existing helper patterns when sibling tests already do that
-
-Example:
+Include only fields the code reads; use `as Message[]` when that drops unused keys:
 
 ```ts
-messages: [
-  {
-    userIdx: fixtures.tb_user[0].idx,
-    reason: 'dormant',
-  },
-] as Message[],
+messages: [{ userIdx: fixtures.tb_user[0].idx, reason: 'dormant' }] as Message[],
 ```
-
-Why this is preferred:
-
-- The fixture stays small
-- The test makes real dependencies obvious
-- The setup does not expand just to satisfy unrelated type fields
 
 ## Fixtures and DB setup
 
-- Use builders from `ridi-backends/test/builders` when a builder exists. Prefer builder chains over raw fixture objects so defaults stay centralized and tests show only the scenario-specific differences.
-- In builder chains, override only fields that are required for the scenario, the code path under test, or the assertion. Do not fill incidental columns such as `service_id`, `pg_tid`, `created_at`, `pay_id`, or `pay_type` just because the table has them; let the builder defaults cover unrelated data.
-- Keep domain-signaling fields when they make the fixture easier to understand, even if the query does not read them directly. For example, `tb_money.amount` can be worth setting next to `remain_amount` because it explains the money row's original amount and remaining balance.
-- Prefer auto-increment for primary keys in both `dbFixtureHooks` / `dbFixtureHooksEach` and inline inserts: omit builder `.id(...)` and hardcoded `id` in fixture rows unless the scenario truly needs a fixed id (e.g. matching pre-seeded data or asserting a specific id).
-- For related rows, wire foreign keys from the parent row’s assigned id — not from a hand-picked constant on both parent and child.
-- After a DB mutation, query back and assert the resulting row shape instead of only checking that a function was called
+- Use `ridi-backends/test/builders` when available; override only scenario-critical fields; let defaults cover incidental columns
+- Keep domain-signaling fields when they aid reading (e.g. `tb_money.amount` next to `remain_amount`)
+- Omit auto-increment PKs unless the scenario needs a fixed id
+- Wire child FKs from parent rows — not hand-picked constants on both sides
+- After mutations, query back and assert row shape, not only that a function was called
+
+### Avoid derived fixture helpers
+
+Do **not** add shared callbacks that read other tables and auto-build rows (e.g. filter `tb_money` → insert `summary.point_history`). Put auxiliary table data **explicitly** in the nested `describe` that exercises that code path.
+
+### Readability over DRY
+
+For pagination, ordering, or any case where **values matter**, spread each table row in the fixture block. Do not fold rows behind scenario objects, `.map()`, or `.find()` — readers should see inserted values without jumping to helpers.
+
+### FK wiring: index vs lookup
+
+When parent fixture **insert order is part of the test contract**, link children with `results.<alias>[i].id` (parallel indices across related fixtures). Use `find` / `assertIsDefined` only when order is not guaranteed or you must match on a business key.
 
 ### `dbFixtureHooks` vs `dbFixtureHooksEach`
 
-Both live in `ridi-backends/test/utils`. The first tuple element is the **fixture alias** (see below).
+Both in `ridi-backends/test/utils`; first tuple element is the **fixture alias**.
 
-| Helper | Mocha hooks | Runs |
+| Helper | Hooks | Runs |
 | --- | --- | --- |
 | `dbFixtureHooks` | `before` / `after` | Once per `describe` |
-| `dbFixtureHooksEach` | `beforeEach` / `afterEach` | Before every `it` |
+| `dbFixtureHooksEach` | `beforeEach` / `afterEach` | Every `it` |
 
-- List parent fixtures before children; on the child, use `(results) => [...]` and read the parent pk from `results.<alias>`.
-- **`dbFixtureHooks`:** use at the top level, or inside a `describe` when several `it` blocks can share the same DB rows for the whole block.
-- **`dbFixtureHooksEach`:** use when each test needs a fresh insert, or when adding fixtures in a **nested** `describe` under a parent that already uses `dbFixtureHooksEach`.
+- Parents before children; child uses `(results) => [...]` and parent pk from `results.<alias>`
+- **`dbFixtureHooks`:** top level or when several `it` blocks share the same rows
+- **`dbFixtureHooksEach`:** fresh insert per test, or nested `describe` under a parent that already uses `dbFixtureHooksEach`
 
-**Nested describes:** if the parent suite already uses `dbFixtureHooksEach`, child fixture setup must use **`dbFixtureHooksEach`**, not `dbFixtureHooks`. Mocha runs a child `before` before the parent’s `beforeEach`, so `dbFixtureHooks` can insert into the same table first and collide with the parent’s fixed ids (e.g. auto-increment row taking `id=1` before the parent inserts `id=1`).
+**Nested describes:** if the parent already uses `dbFixtureHooksEach`, children must use **`dbFixtureHooksEach`**, not `dbFixtureHooks` (hook order can cause PK collisions).
 
-### Fixture alias
+### Fixture alias and layout
 
-- Prefer the **table name** as the alias: `tb_event_group`, `tb_event_participation`.
-- Avoid domain nicknames (`participationGroup`, `participationStamps`) unless the file already standardizes on something else.
-- Access rows as `fixture.tb_event_group[0].id`, and reference other fixtures in callbacks as `results.tb_event_group[0].id`.
-
-### Describe layout (fixture vs assertion)
-
-- Put `dbFixtureHooks` / `dbFixtureHooksEach` on a **nested `describe`** per scenario (e.g. `when participation exists`), and keep `it` blocks focused on calls + assertions.
-- Each nested `describe` should be readable on its own: duplicate overlapping fixture definitions when scenarios differ, instead of a shared `insertParticipationGroup()` that forces readers to jump around.
-- Prefer `dbFixtureHooksEach` + builders over manual `beforeEach` + `ridiPrimary().insert(...)` when the scenario is table-shaped fixture data.
-
-### Inline inserts
-
-When not using the hooks, insert the parent first (`insertAndGetIdentifiers` or a follow-up query), then set child FKs and locate API results using the returned id.
-
-## User fixtures
-
-- For app-level or auth-shaped user setup, prefer `appsUserHook` from `ridi-backends/apps/test/utils`
-- Use lower-level row builders only when the scenario is specifically about raw table contents
+- Prefer **table name** as alias: `tb_event_group`, `point_history`
+- Access `fixture.tb_event_group[0].id`; reference other fixtures as `results.tb_event_group[0].id`
+- Put hooks on a **nested `describe` per scenario**; keep `it` to calls + assertions
+- Duplicate overlapping fixtures across scenarios when that keeps each block self-contained — avoid shared `insertX()` that hides what was seeded
+- Prefer `dbFixtureHooksEach` + builders over manual `beforeEach` + `ridiPrimary().insert(...)` for table-shaped data
+- Inline inserts: parent first (`insertAndGetIdentifiers` or query), then child FKs from returned ids
 
 ## Feature flags
 
-- Prefer `mockFeatureFlag` from `ridi-backends/test/utils`
-- Avoid manual `sinon.stub(...)` flag setup unless you need control that the helper does not provide
+- Prefer `mockFeatureFlag` from `ridi-backends/test/utils`; avoid manual `sinon.stub` unless necessary
+- Split paths at **describe** boundaries: `describe('with <flag> on')` + `mockFeatureFlag` in `beforeEach`
+- Path-specific fixtures (e.g. summary index rows) live **only** inside that block
+- Do **not** re-run every legacy scenario under FF on when shared post-processing is already covered by FF-off tests — add FF-on cases for the new read path (e.g. pagination/order) only
 
-This keeps flag setup consistent across tests and reduces brittle stubs.
+## Pagination and order
+
+- Seed multiple rows with distinguishable fields (`comments`, `t_id`, amounts, dates)
+- Call API with `offset`/`limit`; assert `count`/`length` plus **one** identifying field on the returned slice
+- When sort keys differ by path (e.g. `created_at` vs `pay_id`), say so in the **`it` title**
+
+## Supertest helpers
+
+Wrap only repeated **request + response parse** in a thin helper (e.g. `fetchPointHistory`). Keep fixtures and assertions in `describe` / `it`.
+
+## User fixtures
+
+- App/auth setup: `appsUserHook` from `ridi-backends/apps/test/utils`
+- Raw row builders only when testing table contents directly
 
 ## Knex table types
-
-Prefer direct table type imports from `knex/types/tables`.
-
-Use:
 
 ```ts
 import type { tb_user_action_campaign } from 'knex/types/tables';
 ```
 
-Avoid importing `Tables` only to index a single table type.
+Avoid `Tables['...']` for a single table.
 
-Direct imports are more explicit and match common usage in existing tests.
+## Isolation
 
-## Isolation and clarity
+- Stub at boundaries you own
+- One behavior per `it`
+- Same DB rows, different inputs/assertions → shared fixture `describe`
+- Different DB rows → separate nested `describe` with own hooks (duplication OK)
+- Prefer one full-shape assertion over many small ones when the contract is deterministic
 
-- Stub side effects at the boundary you own, not deep inside unrelated helpers
-- Do not bloat one test with multiple behaviors that should be separate cases
-- If several `it` blocks differ only in **inputs or assertions** with the **same DB rows**, share one fixture `describe` or helper
-- If cases need **different DB rows**, use separate nested `describe` blocks with their own fixture hooks (duplication is fine)
-- Keep tests readable without requiring the reader to mentally reconstruct the payload from many small assertions
-
-## Good files to copy patterns from
+## Reference files
 
 - `backends/src/subscribers/services/amplitude-event/signUp/userSignupVerified.test.ts`
 - `backends/src/subscribers/services/braze-event/signUp/userSignupVerified.test.ts`
-- `internal-products/backends/src/backoffice/controllers/event/management/event-participation/index.test.ts` — `dbFixtureHooksEach` with table-name aliases and `(results)` chains
-- `internal-products/backends/src/backoffice/controllers/event/management/event-group/index.test.ts` — nested `describe` + per-scenario `dbFixtureHooksEach` under a parent fixture suite
+- `internal-products/backends/src/backoffice/controllers/ridi-select/voucher-campaign/index.test.ts` — `dbFixtureHooksEach`, table aliases, `(results)` chains; nested `describe` + per-scenario hooks
+- `internal-products/backends/src/backoffice/controllers/event/management/event-group/index.test.ts` — shared `dbFixtureHooksEach` suite fixtures; `describe` per controller method
+- `backends/src/apps/books/routes/api/order/histories/point/queries.test.ts` — `toQuery()` contracts
+- `backends/src/apps/books/routes/api/order/histories/point/index.test.ts` — `describe('with summary.point_history (feature flag on)')` block: FF-on pagination/order, inline fixtures, `(results)` FK wiring
 
 ## Common mistakes
 
-- Stubbing from the top-level `r-bus` barrel
-- Splitting one deterministic payload check into many partial assertions without a reason
-- Adding unused fields to `eachBatch` messages
-- Rewriting feature flag stubs manually when a helper already exists
-- Importing `Tables` for a single row type
-- Writing oversized fixtures that hide which columns actually matter
-- Hardcoding auto-increment PKs or FKs when only parent–child linkage is needed
-- Using `dbFixtureHooks` inside a nested `describe` whose parent already uses `dbFixtureHooksEach` (hook order / PK collisions)
-- Fixture aliases that do not match table names (`participationGroup` instead of `tb_event_group`)
-- Putting large insert blocks inside `it` or a shared helper when `dbFixtureHooksEach` on a nested `describe` would separate fixture from assertion
+- Stubbing top-level `r-bus` barrel
+- Many partial assertions on one deterministic payload
+- Unused `eachBatch` fields
+- Manual feature-flag stubs when `mockFeatureFlag` exists
+- `Tables` import for one row type
+- Oversized fixtures hiding which columns matter
+- Hardcoded PKs/FKs when index linkage suffices
+- `dbFixtureHooks` nested under parent `dbFixtureHooksEach`
+- Non-table fixture aliases (`participationGroup` vs `tb_event_group`)
+- Large inserts in `it` or shared helpers instead of nested `describe` hooks
+- Derived fixture callbacks (auto summary rows from money)
+- Scenario `.map()` / `.find()` hiding pagination seed data
+- Duplicating every API scenario under FF on when legacy path already covers post-processing
+- SQL/order checks in API tests instead of `queries.test.ts`
 
 ## Related skills
 
