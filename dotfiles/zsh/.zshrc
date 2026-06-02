@@ -191,5 +191,25 @@ qc() {
 }
 # <<< quickcommand zsh integration <<<
 
+# claude shortcuts
+# c 1 "command" -> sonnet (fast)
+# c 2 "command" -> opus (high effort)
+c() {
+  local tier=$1
+  shift
+  case $tier in
+    1)
+      ANTHROPIC_MODEL="claude-sonnet-4-6" claude --dangerously-skip-permissions --bg "$@"
+      ;;
+    2)
+      ANTHROPIC_MODEL="claude-opus-4-8" CLAUDE_CODE_EFFORT_LEVEL="high" claude --dangerously-skip-permissions --bg "$@"
+      ;;
+    *)
+      echo "Usage: c <1|2> <command>" >&2
+      return 1
+      ;;
+  esac
+}
+
 # local-only config
 [[ -r "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
