@@ -40,6 +40,7 @@ Use it before adding a new event, subscriber, or backfill job.
 - Treat subscriber handlers as independent consumers with their own `groupId`
 - Use existing event folders as templates instead of inventing a new structure
 - Check `one-off-cmds` for existing backfill patterns before creating another script
+- In `reward-user-action-campaign`, read mission properties across multiple missions through the cached/concurrency-limited aggregator (`getCachedMissionProperties` in `subscribers/services/reward-user-action-campaign/utils/campaign.ts`) — not the raw `queries.findMission*Properties` directly. A single mission can have 10k+ property rows, so it uses mget cache + `pLimit` to cap concurrent per-mission queries and avoid DB load.
 
 ## Common checks
 

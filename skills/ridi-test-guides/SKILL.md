@@ -118,6 +118,15 @@ Both in `ridi-backends/test/utils`; first tuple element is the **fixture alias**
 
 Wrap only repeated **request + response parse** in a thin helper (e.g. `fetchPointHistory`). Keep fixtures and assertions in `describe` / `it`.
 
+Pass query parameters via `.query()`, not inlined in the URL. Keep path params in the URL.
+
+```ts
+// good
+.get(`/annotations/units/${unitId}`).query({ offset: 0, limit: 20 })
+// avoid
+.get(`/annotations/units/${unitId}?offset=0&limit=20`)
+```
+
 ## User fixtures
 
 - App/auth setup: `appsUserHook` from `ridi-backends/apps/test/utils`
@@ -164,6 +173,7 @@ Avoid `Tables['...']` for a single table.
 - Scenario `.map()` / `.find()` hiding pagination seed data
 - Duplicating every API scenario under FF on when legacy path already covers post-processing
 - SQL/order checks in API tests instead of `queries.test.ts`
+- Inlining query params in the Supertest URL instead of `.query({ ... })`
 
 ## Related skills
 

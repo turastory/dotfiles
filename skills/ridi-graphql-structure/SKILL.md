@@ -81,6 +81,10 @@ description: Use when adding or changing GraphQL schema, resolvers, or web clien
 - **필수 필드 additive 추가의 잠복 tsc 실패**: SDL 에 non-null 필드를 추가해도 스키마/codegen PR 단독에서는 tsc 가 통과할 수 있지만, 그 필드를 채우지 못하는 기존 리졸버 반환 shape (예: GrowthBook JSON fallback, feature-flag spread) 이 있으면 **상위 스택의 리졸버 PR에서만 tsc 가 깨진다**. 증상은 `Type '...' is not assignable to type 'Omit<X, ...> & { ... }'` 로 특정 필드를 지목하지 않는 포괄적 에러라 원인 파악이 느리다. 대응은 (a) 스키마 PR 에서 optional 로 두거나 (b) 리졸버 PR 에서 해당 경로에 defaults shim 을 추가하는 것. master 에서 tsc 가 초록인데 내 스택에서만 빨간 경우 스택 아래 SDL PR 의 **additive 필드**가 의심 1순위.
 - **Parent 타입이 union/override 인 리졸버 반환 mapping**: `EventParticipationGroup` 처럼 `Omit<X, 'backgroundScheme' | ...> & { backgroundScheme?: Maybe<Union> }` 형태로 codegen 된 parent 타입을 반환하는 mapper 는, 반환 타입을 `ResolversParentTypes['X']` 로 **명시적으로 annotate** 하면 union discriminator (`{ type: 'SOLID' | 'GRADIENT' }`) 가 제대로 좁혀진다. 생략하면 `schema.X` (default model) 로 추론돼 union 필드에서 구조 불일치가 난다.
 
+## References
+
+- `references/event-detail.md`: event detail operation split and books-islands verification notes.
+
 ## 관련 skill
 
 - `ridi-project-structure` — 앱 등록·`/graphql` 마운트·경로 인덱스
