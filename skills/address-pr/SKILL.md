@@ -2,10 +2,9 @@
 name: address-pr
 description: >-
   Checks out a pull request with GitHub CLI (preferring a local git worktree
-  under .worktrees/ when possible), collects review and discussion comments, and
-  produces a
-  per-comment action plan for user confirmation before any implementation. Does
-  not post GitHub comments or create commits. Use when the user invokes
+  under .worktrees/ when possible), collects review and discussion comments,
+  immediately implements trivial fixes with commits, then presents a list of
+  larger/ambiguous items for user decision. Use when the user invokes
   /address-pr, says "address PR", wants to work through PR review feedback
   systematically, or asks to checkout a PR by number or URL and plan fixes from
   review comments.
@@ -15,63 +14,60 @@ description: >-
 
 ## Purpose
 
-Speed up **responding to PR review feedback** by: checking out the PR locally, **aggregating all feedback**, and producing a **numbered, confirmable plan**—without leaving GitHub comments or making commits during this workflow.
+**PR 리뷰 피드백을 능동적으로 처리**한다: 코멘트를 읽고 분류한 뒤, 간단한 것은 즉시 구현·커밋하고, 큰 변경이나 판단이 필요한 항목은 사용자에게 정리해서 보여준다.
 
-## Hard constraints (non-negotiable)
+흐름 요약:
+```
+코멘트 읽기 → 처리 계획 수립 → 작은 코멘트들 반영 (여러 번 커밋)
+→ 푸시 → Reply 남기기 → 사용자 검토가 필요한 것들 리스트업
+```
 
-- **Do not** post replies or review comments on GitHub (`gh pr comment`, review submissions, issue/PR comment APIs used to *write*).
-- **Do not** `git commit`, `git push`, or open/update PRs unless the user **explicitly** asks outside this skill’s planning phase.
-- This skill ends at a **confirmed plan**; implementation is a **separate** step after the user approves which items to address.
+이후 사용자 응답에 따라 **"코멘트 반영 / 푸시 / Reply 남기기" → 남은 작업이 있을 경우 다시 검토 요청** 사이클을 반복한다.
+
+## Tone and writing style
+
+Reply 초안 작성 전 `../my-tone/SKILL.md`를 읽고 "리뷰 피드백 처리 계획"·"작성자로 답글 달 때" 가이드를 적용한다. 짧고 자연스러운 팀원 말투, 불필요한 격식·감사 멘트 생략.
 
 ## Prerequisites
 
-1. Run `gh auth status`. If authentication fails or the wrong account is active, explain which account appears active and which repo/account is needed. Switch accounts only when the user or repo instructions make the intended account clear, then retry.
-2. Prefer running from the **target repository** clone (or worktree). Resolve `owner/repo` via `gh repo view --json nameWithOwner -q .nameWithOwner` when needed.
+1. `gh auth status` 실행. 인증 실패나 계정 불일치 시 안내 후 중단.
+2. `gh repo view --json nameWithOwner -q .nameWithOwner`로 `owner/repo` 확인.
 
 ## Prefer git worktrees
 
-**When not already on a dedicated worktree for this PR**, prefer isolating the PR branch in a **separate worktree** so the main clone keeps its current branch and working tree.
+현재 해당 PR 브랜치의 전용 worktree에 있지 않은 경우, `.worktrees/pr-<number>/` 경로에 워크트리를 만들어서 작업한다. `using-git-worktrees` 스킬의 디렉터리 규칙 참고.
 
-- **Location:** Prefer a **project-local** path under **`.worktrees/`** at the repository root (e.g. `.worktrees/pr-26593/`). Use `worktrees/` only if the project already standardizes on it; follow **using-git-worktrees** for directory rules and safety checks (`git check-ignore`, `.gitignore` if needed).
-- Typical pattern from the **main repo** root: fetch the PR head into a local branch ref, then `git worktree add .worktrees/pr-<number> <branch>` (or an equivalent path under `.worktrees/`) and run subsequent `gh` / file reads from that path (or pass `-C <path>` where supported).
-- **If** the user explicitly wants to stay in the current directory or a worktree is impractical (e.g. single shallow clone), fall back to `gh pr checkout` in place only after checking the active clone's state. Run `git status --short`; if there are local changes, stop and ask the user whether to proceed because checkout may switch branches in the active clone.
+- 이미 해당 브랜치가 체크아웃된 상태이거나 단일 클론 환경이라면 현재 디렉터리에서 진행.
+- 진행 전 `git status --short` 확인 — local 변경이 있으면 사용자에게 물어본다.
+
+---
 
 ## Workflow
 
-### 1. Resolve input and check out the PR
+### Phase 1: PR 체크아웃 및 코멘트 수집
 
-Accept either:
-
-- A **PR number** (e.g. `26593`), or  
-- A **PR URL** (e.g. `https://github.com/org/repo/pull/26593`).
-
-**Preferred:** check out via a **worktree** under **`.worktrees/`** (see § Prefer git worktrees).
-
-**Fallback** when not using a worktree: first verify the current clone is safe to switch:
+**1a. PR 체크아웃**
 
 ```bash
-git status --short
+# worktree 방식 (권장)
+gh pr checkout <number> --branch <branch-name>
+git worktree add .worktrees/pr-<number> <branch-name>
+
+# 또는 현재 디렉터리에서 직접
+gh pr checkout <number>
 ```
 
-If there are local changes, stop and ask the user whether to proceed. If the working tree is clean, check out the branch in the current clone:
+**1b. 코멘트 수집 (read-only)**
 
-```bash
-gh pr checkout <number-or-url>
-```
+다음 세 가지 소스를 모두 수집한다:
 
-If checkout fails (wrong repo, missing access, merge conflicts), report the error clearly and stop until the user fixes the environment.
+| Source | 방법 |
+| ------ | ---- |
+| Inline review threads (`isResolved` 포함) | GraphQL `reviewThreads` |
+| PR conversation comments | `gh pr view --comments` |
+| Review summaries (APPROVE/COMMENT/REQUEST_CHANGES) | `gh pr view --json reviews` |
 
-### 2. Collect review feedback (read-only)
-
-Gather **all** of the following that exist:
-
-| Source | Suggested `gh` usage |
-| ------ | -------------------- |
-| Inline review threads (code threads, with `isResolved` flag) | GraphQL via `gh api graphql` on `repository.pullRequest.reviewThreads` — see snippet below |
-| PR conversation / issue comments | `gh pr view <number> --comments` and/or `gh api repos/{owner}/{repo}/issues/{number}/comments` |
-| Review summaries (APPROVE / COMMENT / REQUEST_CHANGES) | `gh pr view <number> --json reviews` or `gh api repos/{owner}/{repo}/pulls/{number}/reviews` |
-
-**Skip resolved threads.** Inline review comments are grouped into threads, and each thread has an `isResolved` flag. Filter these out *before* building the plan — the user has already dealt with them. Use GraphQL because the REST `pulls/{number}/comments` endpoint does not expose `isResolved`:
+**resolved된 thread는 반드시 제외.** GraphQL로 `isResolved` 필터링:
 
 ```bash
 gh api graphql -f query='
@@ -95,122 +91,171 @@ gh api graphql -f query='
   --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not)'
 ```
 
-If `pageInfo.hasNextPage` is true for review threads or nested comments, continue paginating until all nodes are collected. Do not silently rely on the first page.
+`pageInfo.hasNextPage`가 true이면 계속 페이지네이션.
 
-For PR conversation comments and review summaries (which are not thread-scoped and have no resolved state), include them all.
+**특정 리뷰어의 코멘트만 처리할 때(예: "RINDAMAN2426의 코멘트 처리")는 스레드 첫 작성자가 아니라 스레드 안의 *아무* 코멘트라도 그 리뷰어가 단 경우를 모두 수집한다.** 작성자가 시작한 스레드에 리뷰어가 답글로 질문·제안을 남기는 경우가 흔하므로, `.comments.nodes[0].author.login == <reviewer>`로 거르면 이런 스레드를 놓친다. 대신 `any`로 거른다:
 
-**Do not dedupe away feedback.** Every unresolved comment must remain visible somewhere in the report — even if two reviewers say similar things — so the user can see the full picture. Separate clearly actionable items from FYI / praise / empty approval summaries; non-actionable entries may be listed in a compact appendix.
+```bash
+  --jq '.data.repository.pullRequest.reviewThreads.nodes[]
+        | select(.isResolved | not)
+        | select(any(.comments.nodes[]; .author.login == "<reviewer>"))'
+```
 
-### 3. Build the plan (one entry per comment)
+---
 
-The report must include **every** unresolved comment collected in step 2 — one entry per actionable comment, no summarization-away, no merging "similar" items. For each actionable entry, produce:
+### Phase 2: 처리 계획 수립
 
-1. **Reference**: reviewer (or bot) login, source type (inline thread / PR conversation / review summary), and **code location** when applicable — file path and line number (use `line` for inline comments; fall back to `originalLine` if the line has shifted). Format code locations as `<path>:<line>` so the user can jump directly to the referenced position. Include the comment URL when available.
-2. **Original text (verbatim)**: the comment `body` as-is, quoted in a markdown blockquote. Do not paraphrase or trim normal-length comments. If the comment is very long, include a concise verbatim excerpt, keep the URL, and state that the full text is available at the linked comment.
-3. **Summary**: what the reviewer is asking for, in plain language (this is *in addition to* the verbatim text, not a replacement).
-4. **Suggested fix**: concrete approach (files to touch, pattern to apply, tests to add/update). For comments that are pure praise or non-actionable ("nice!", "lgtm"), state explicitly that no action is needed.
-5. **Suggested reply (draft)**: a **short** reply the user could post back to the reviewer — 1–2 sentences max, plain prose, no boilerplate ("Thanks for the review!"). Always wrap the full draft reply in double quotes. Match the comment's language (e.g. Korean comment → Korean reply). Use inline code quotes only where they are necessary for exact identifiers, paths, commands, or symbols; avoid code quotes for ordinary prose. Concrete examples: "맞는 지적이라 `foo`로 변경했습니다.", "의도된 동작입니다. `bar`는 nullable이라 체크가 필요합니다.", "다음 PR에서 별도로 다루겠습니다." This is a **draft only**; the skill never posts it.
-6. **Effort / risk** (short): trivial / moderate / larger; note if it might conflict with other items.
+수집한 코멘트를 분석해서 두 그룹으로 나눈다.
 
-Group optional: by severity (blocking vs nit), or by file — whichever makes faster review for the user. Grouping must not drop or collapse actionable entries. Put non-actionable FYI / praise / empty approval summaries in a compact appendix when present.
+**유효성 판단 먼저**: 코멘트가 잘못된 전제, 이미 반영된 내용, 또는 무관한 FYI/praise라면 → skip 처리하고 이유를 명시.
 
-### Report style and example
+**비슷한 변경끼리 묶기**: 같은 파일·같은 패턴에 해당하는 코멘트는 하나의 처리 단위로 묶어도 된다. 단, 원문은 모두 보존.
 
-Use a consistent, scan-friendly report. Start with a short note about checkout/worktree status, then list the actionable entries. Keep the original comment verbatim and do not collapse multiple unresolved comments into one item.
-Use the user's language for report labels and explanations when clear from the conversation.
+#### 그룹 A: 즉시 처리 (trivial)
+- 단순 오탈자, 네이밍 변경, 명확한 버그 수정, 스타일 통일 등
+- 트레이드오프 없이 구현 방향이 자명한 것
 
-Recommended structure:
+#### 그룹 B: 사용자 검토 필요
+- 구현 규모가 큰 변경
+- "왜 이렇게 했나요?" 같은 단순 질문 (답변으로 해결)
+- 트레이드오프가 있거나 판단이 필요한 것
+- 리뷰어의 의도가 불분명한 것
+
+---
+
+### Phase 3: 즉시 처리 (그룹 A)
+
+그룹 A에 해당하는 항목을 순서대로 구현한다.
+
+**커밋 규칙:**
+- 코멘트 하나(또는 묶음)를 반영할 때마다 커밋
+- 반드시 `--no-verify` 옵션으로 pre-commit hook 우회
+- 커밋 메시지: `fix: <간결한 설명>` (예: `fix: rename variable for clarity`)
+
+```bash
+git add <changed-files>
+git commit --no-verify -m "fix: <description>"
+```
+
+**커밋 후 SHA를 기록한다.** Phase 5 reply에서 "이 커밋에서 고쳤다"고 링크하기 위해, 각 코멘트(또는 묶음)와 그걸 반영한 커밋 SHA를 짝지어 둔다.
+
+```bash
+git rev-parse HEAD   # 방금 만든 커밋의 SHA
+```
+
+---
+
+### Phase 4: 푸시
+
+그룹 A 처리 및 커밋이 모두 완료되면, Reply를 남기기 전에 **한 번** 푸시한다.
+
+```bash
+git push
+```
+
+---
+
+### Phase 5: Reply 남기기
+
+`my-tone` 스킬을 참고해서 각 처리 완료 코멘트에 적절한 Reply를 남긴다.
+
+**Reply를 남기기 전 확인:**
+- 해당 thread에 이미 적절한 응답이 달려있으면 → **skip** (중복 방지)
+- Reply가 없거나 "처리했다"는 내용이 없으면 → 새 reply 작성
+
+**수정 커밋 링크를 붙인다.** 코드 변경으로 처리한 코멘트(그룹 A, 또는 그룹 B 중 반영한 것)는 reply 끝에 Phase 3에서 기록해 둔 수정 커밋 SHA 링크를 붙여 리뷰어가 바로 변경을 확인할 수 있게 한다. 링크 형식:
+
+```
+https://github.com/{owner}/{repo}/pull/{number}/commits/{sha}
+```
+
+- 한 코멘트를 여러 커밋으로 나눠 처리했으면 해당 커밋들을 모두 링크한다.
+- 단순 답변(코드 변경 없음)이나 skip 코멘트에는 커밋 링크를 붙이지 않는다.
+
+```bash
+gh api repos/{owner}/{repo}/pulls/{number}/comments/{comment_id}/replies \
+  -f body="<reply text>
+
+<commit-url>"
+```
+
+Reply 톤: 짧고 자연스럽게, 1~2문장. 한국어 코멘트엔 한국어로, 영어엔 영어로. 커밋 링크는 본문과 한 줄 띄워 마지막에 둔다.
+
+---
+
+### Phase 6: 사용자에게 그룹 B 리스트업
+
+그룹 B 항목을 다음 형식으로 정리해서 사용자에게 보여준다:
 
 ```markdown
-PR <number> is checked out on <branch/worktree status>. I skipped resolved threads and collected <N> unresolved inline threads plus any PR conversation comments or review summaries.
+## 검토가 필요한 코멘트
 
-## Response Plan
-
-### 1. <author> <source type>
-Reference: `<path>:<line>`  
-URL: <comment URL>
-
-Original:
+### 1. <reviewer> — <source type>
+**원문:**
 > <verbatim comment body>
 
-Summary: <plain-language interpretation>
+**한 줄 요약:** <무엇을 요청하는지>
 
-Suggested fix: <specific files/pattern/tests>
+**변경 제안:** <구체적인 접근법 / 질문이면 "답변 필요" 명시>
 
-Suggested reply: "<1-2 sentence draft reply>"
-
-Effort / risk: <trivial / moderate / larger, plus conflict note if any>
-
-## Confirmation
-
-Please choose which items to address, defer, or skip.
+**Effort:** trivial / moderate / larger
 ```
 
-Example based on a Backoffice PR review:
+리스트업 후 사용자 응답 대기. 사용자가 각 항목에 대해 지시를 주면:
+- 반영하기로 한 것 → 구현 → 커밋(`--no-verify`) → 푸시 → Reply
+- 스킵하기로 한 것 → Reply만 (또는 "의도한 방향입니다" 등 짧은 설명)
+- 추가 논의가 필요한 것 → 다시 질문
+
+이 사이클을 남은 항목이 없을 때까지 반복한다.
+
+---
+
+### Phase 7: 스킬 개선 제안
+
+모든 코멘트 처리가 완료되면, 이번 작업에서 발견한 내용 중 **다음 스킬에 반영할 만한 것**이 있는지 확인하고 정리해서 사용자에게 보여준다.
+
+대상 스킬:
+- **`/address-pr`** (이 스킬): 반복되는 패턴, 놓쳤던 케이스, 워크플로우 개선 아이디어
+- **`/review-pr`**: 리뷰어가 자주 지적하는 유형, 프로젝트별 컨벤션
+- **`/my-tone`**: reply 톤·표현 중 어색했거나 개선할 여지가 있는 것
+
+없으면 이 Phase는 생략한다. 있을 경우 아래 형식으로 짧게 정리:
 
 ```markdown
-PR 27727 is already on the matching head branch, so I did not check it out again. I skipped resolved threads and collected 5 unresolved inline threads plus PR conversation/review-summary items.
+## 스킬 개선 제안
 
-## Response Plan
-
-### 1. cursor inline thread
-Reference: `internal-products/frontends/backoffice/src/pages/event/management/group/components/event-group-participation/useEventGroupParticipationForm.ts:184`  
-URL: https://github.com/ridi/ridi/pull/27727#discussion_r3245679381
-
-Original:
-> ### `onDelete` lacks error handling, fails silently
->
-> `onDelete` 콜백에 try-catch가 없어서 `deleteEventParticipation`이 실패하면 사용자에게 에러 피드백 없이 실패합니다.
-
-Summary: Deleting participation can fail without user-facing feedback.
-
-Suggested fix: Add try/catch around `deleteEventParticipation`, show an error snackbar using the server message when available, and keep success/reset behavior unchanged.
-
-Suggested reply: "`onDelete` 실패 시에도 snackbar로 오류가 보이도록 처리하겠습니다."
-
-Effort / risk: trivial.
-
-### 2. gyu-kang inline thread
-Reference: `internal-products/frontends/backoffice/src/components/forms/ListField.tsx:148`  
-URL: https://github.com/ridi/ridi/pull/27727#discussion_r3246587825
-
-Original:
-> visibleRowCount typing이 optional number니까, visibleRowCount !== undefined가 이해가 쉬운 표현 같네요~
-
-Summary: The condition should reflect the optional-number type directly.
-
-Suggested fix: Replace `typeof visibleRowCount === 'number'` with `visibleRowCount !== undefined` wherever the visible-row branch is selected.
-
-Suggested reply: "맞습니다. optional number 의도가 더 잘 드러나도록 조건을 바꿀게요."
-
-Effort / risk: trivial.
-
-## Confirmation
-
-Please choose: address all, address only specific item numbers, defer, or skip.
+- **`/address-pr`**: <제안 내용>
+- **`/review-pr`**: <제안 내용>
+- **`/my-tone`**: <제안 내용>
 ```
 
-### 4. User confirmation (required)
+사용자가 반영하겠다고 하면 해당 스킬 파일을 직접 수정한다.
 
-Present a **checklist** the user can answer explicitly, for example:
+---
 
-- Address / defer / skip — per item or by group.  
-- Clarifications needed from the reviewer (list questions only; **do not** post them to GitHub inside this skill unless the user later asks).
+## GraphQL snippet 참고 (replyUrl 포함 버전)
 
-**Stop** after the user confirms scope. Do not start implementation inside this skill run unless the user clearly asks to proceed to coding in the same thread.
+thread의 첫 번째 comment URL을 기반으로 reply endpoint를 찾는다:
 
-### 5. Handoff
+```bash
+# comment URL 형식: https://github.com/{owner}/{repo}/pull/{number}#discussion_r{comment_id}
+# REST reply: POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/replies
+```
 
-After confirmation, the next step is normal implementation work for approved items only. Posting GitHub comments, committing, pushing, or opening/updating PRs still requires a separate explicit user request.
+---
 
 ## Anti-patterns
 
-- Posting “done” or “fixed” on the PR automatically.  
-- Silent partial scope (always make defer/skip explicit).  
-- Mixing this workflow with drive-by refactors unrelated to review comments.
+- resolved thread에 reply 달기
+- 구현 없이 "처리했다"고만 reply 달기
+- 그룹 A 처리 전에 그룹 B를 보여주기 (순서 지키기)
+- 푸시 전에 reply 달기
+- 관련 없는 드라이브바이 리팩터링 섞기
+
+---
 
 ## Invocation examples
 
-- User: `/address-pr 26593`  
-- User: “Address PR <https://github.com/org/repo/pull/123>”  
-- User: “Checkout PR and list review comments with a fix plan before I code”
+- User: `/address-pr 26593`
+- User: "Address PR <https://github.com/org/repo/pull/123>"
+- User: "PR 리뷰 코멘트 처리해줘"
