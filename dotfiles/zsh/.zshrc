@@ -211,5 +211,7 @@ c() {
   esac
 }
 
+source ~/.local/share/envs/envs-source.sh
+
 # local-only config
 [[ -r "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
