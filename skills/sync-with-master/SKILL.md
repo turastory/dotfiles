@@ -14,7 +14,15 @@ Bring the **current branch** up to date with the latest remote `master`. Does **
 
 ## Workflow
 
-Run from the **feature worktree** (the branch you want to update):
+Run from the **feature worktree** (the branch you want to update).
+
+First check for uncommitted changes:
+
+```bash
+git status --short
+```
+
+`git fetch` is always safe. `git merge` aborts cleanly (no data loss) if incoming changes touch files you have uncommitted edits in. If `git status` shows local changes, ask the user whether to commit or `git stash` before merging — don't stash/commit on your own.
 
 ```bash
 git fetch origin master
