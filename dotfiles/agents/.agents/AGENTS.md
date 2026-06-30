@@ -74,6 +74,7 @@ Lint 에러가 발생하면 먼저 다음 절차를 따른다.
 - 브랜치 이름은 `productpay/<feature>/<details>` 형식을 따른다. 예: `productpay/event-participation/progress-list-backends` (`productpay`는 팀명).
 - 커밋 메시지는 `feat: add event participation table`처럼 간결한 한 줄 형태 사용. 가급적 multi-line commit은 피할 것.
 - merge conflict 해결 후 머지를 마무리(conclude)하는 커밋은 반드시 `--no-verify` 옵션으로 실행해서 pre-commit hook(lint/formatter)이 돌지 않게 할 것. 머지에는 다른 브랜치에서 들어온 대량의 변경이 포함되어 lint-staged hook이 무관한 파일에서 실패하거나 `[KILLED]`되며 index가 손상될 수 있다. (실제로 hook이 죽으면서 git object가 깨져 `git status`가 `fatal: unable to read <sha>`로 실패한 사례 있음 → `git reset --hard HEAD` + `git clean -fd`로 복구 후 재머지 필요했음)
+- **의존 PR 트리/체인(stacked PR 포함) 관리는 `pr-tree` 스킬**(`~/.agents/skills/pr-tree/`)을 쓸 것. 트리 정의를 워크스페이스 프로젝트의 `pr-tree.tsv`(single source of truth)에 두고, 스킬의 `check-pr-tree.sh --tree <tsv>`로 deterministic 점검·cascade. tree/forest(여러 base)와 그 특수 케이스인 선형 체인 모두 지원. 단일 브랜치를 master와 맞추는 것은 `sync-with-master` 스킬.
 
 ## PR 코멘트 답글
 

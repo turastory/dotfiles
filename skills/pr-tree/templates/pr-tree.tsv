@@ -1,0 +1,11 @@
+# <기능명> PR 트리 — single source of truth
+# pr-tree 스킬 점검기가 이 파일을 읽는다. 컬럼: pr <TAB> branch <TAB> base <TAB> worktree_suffix <TAB> status
+#   - pr: PR 번호 또는 '-'(없음)
+#   - base: master(루트) 또는 다른 행의 branch
+#   - worktree_suffix: $RIDI_WT_ROOT(기본 ~/.superset/worktrees/ridi) 아래 상대경로, '-'면 미생성
+#   - status: open(점검 대상) | planned(미착수, 건너뜀)
+# 루트→잎 순서로 정렬(base가 자식보다 앞 행). 트리가 바뀌면 이 파일만 고친다.
+#
+# pr	branch	base	worktree_suffix	status
+0000	productpay/<feature>/<root>	master	productpay/<feature>/<root>	open
+-	productpay/<feature>/<child>	productpay/<feature>/<root>	-	planned
