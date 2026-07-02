@@ -42,11 +42,24 @@ Before using `gh`, run `gh auth status` to check if you are authenticated.
 6. Push the target branch to remote to trigger the deploy pipeline.
 7. Check out the original branch and restore the stash with `git stash pop`.
 8. After restoring the stash, inspect `git status` and tell the user if files were restored as staged changes.
-9. Monitor the triggered deploy pipeline(s) with `gh` until they succeed, fail, or time out.
+9. Watch the triggered deploy pipeline(s) in the background instead of blocking on `gh run watch`.
    - Only the pipeline(s) for the areas you changed will run. A frontend-only change (e.g. `frontends/web/...`, `books-islands`) triggers only `Books frontend Deploy Pipeline for ecs & eks`; a backends change triggers `Books backends Deploy Pipeline for ecs & eks`. Don't wait on a pipeline that won't run — match the watched workflows to your changed paths.
    - Find your commit's runs with `gh run list --branch <target-branch> --limit 6 --json workflowName,status,conclusion,databaseId,displayTitle` (match by your squash commit's `displayTitle`).
-   - Use `gh run view <run-id> --json conclusion,status,url,displayTitle` to capture the result and share the run URL with the user.
-   - Use `gh run watch <run-id> --exit-status` to block until completion.
+   - For each relevant run, start one `Monitor` call (one per run id if more than one pipeline triggered) with a command that polls and exits on completion, e.g.:
+     ```sh
+     prev=""
+     while true; do
+       s=$(gh run view <run-id> --json status,conclusion,url,displayTitle)
+       cur=$(echo "$s" | jq -r .status)
+       [ "$cur" != "$prev" ] && echo "status=$cur"
+       prev=$cur
+       [ "$cur" = "completed" ] && { echo "$s" | jq -r '"conclusion=\(.conclusion) url=\(.url) title=\(.displayTitle)"'; break; }
+       sleep 20
+     done
+     ```
+     Give it a `description` naming the workflow (e.g. "backends deploy pipeline run"), and a `timeout_ms` generous enough for a deploy pipeline (e.g. 1800000 = 30 min, up to the 3600000 max). This lets you keep working or hand control back to the user instead of sitting idle on a blocking watch.
+   - If the `Monitor` tool is not available (e.g. not present in the current tool list), fall back to `gh run watch <run-id> --exit-status` per run instead — don't block the whole flow on trying to make `Monitor` work.
+   - When a monitor's completion line arrives, report the conclusion and run URL to the user, and send one `PushNotification` per finished pipeline summarizing pass/fail (deploy pipelines run long enough that the user may have stepped away) — e.g. `"deploy/dev backends pipeline: success"` or `"deploy/dev frontend pipeline: FAILED — see run URL"`. Skip `PushNotification` too if it isn't available; just report results in chat as each `gh run watch` returns.
 
 ## Notes
 
