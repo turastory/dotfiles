@@ -103,13 +103,40 @@ productpay/`, `ls ~/workspaces/project/`).
 1. **워크트리 생성** — `superset-cli` 스킬대로 `superset workspaces create --project ridi
    --local --branch <branch> --base-branch <base>`. base가 다른 청크의 branch면(stacked),
    그 청크의 branch가 이미 push된 뒤에 실행해야 한다.
-2. **구현** — 1단계 스코프 노트를 그대로 프롬프트에 포함시켜 넘긴다. 관련 프로젝트 스킬
-   (`ridi-test-guides`, `ridi-graphql-structure` 등 해당되는 것)을 읽고 따르도록 위임
-   프롬프트에 명시.
+2. **구현** — 아래 "구현 단계: Codex 위임 (EXPERIMENTAL)" 섹션을 따른다. (되돌릴 때는 그
+   섹션을 통째로 지우고 "Fallback: 직접 구현"의 문구를 이 2번 항목 자리로 옮기면 된다.)
 3. **draft PR 오픈** — `create-pr` 스킬 컨벤션대로. PR 본문에 **원본 작업 항목 링크**(Asana
    task URL, Slack permalink 등)를 반드시 포함시키도록 위임 프롬프트에 명시 — 나중에
    4단계 리포트와 리뷰어가 맥락을 되짚을 유일한 연결고리다. 항목이 평문 텍스트라 링크가
    없으면 원본 요청 문구를 그대로 인용한다.
+
+### 구현 단계: Codex 위임 (EXPERIMENTAL)
+
+> **EXPERIMENTAL (2026-07-02, 시험 적용)** — 청크 위임 자체(워크트리 생성, draft PR
+> 오픈)는 그대로 Claude Agent가 오케스트레이션하되, 그 안의 "구현"만
+> `codex:codex-rescue` 서브에이전트에 한 번 더 위임해본다. 되돌릴 때는 이 섹션을 통째로
+> 지우고 아래 "Fallback: 직접 구현" 문구를 위 2번 항목 자리로 옮기면 된다(또는 이 변경을
+> 도입한 커밋을 `git revert`).
+
+청크를 맡은 Claude Agent는 워크트리 생성(1번) 직후, 직접 코드를 작성하는 대신:
+
+1. 1단계 스코프 노트와 관련 프로젝트 스킬 목록(`ridi-test-guides`,
+   `ridi-graphql-structure` 등 해당되는 것)을 그대로 담아 `Agent` 도구로
+   `subagent_type: "codex:codex-rescue"`를 **한 번** 호출한다. 프롬프트에 명시할 것:
+   - 스코프(무엇을 바꿔야 하는지, 영향 파일/영역)
+   - 반드시 지켜야 할 컨벤션(테스트 가이드, 커밋 메시지 스타일 등)
+   - 자신이 이미 그 청크 전용 워크트리 디렉터리에서 실행 중이므로 별도 경로 지정 없이
+     cwd 기준으로 작업하면 된다는 점
+2. Codex 세션이 끝나면 `git status --short` / `git diff`로 변경 범위가 스코프를 벗어나지
+   않았는지 확인한다.
+3. 검증을 통과하면 3번(draft PR 오픈)으로 진행한다. Codex 결과가 스코프를 벗어났거나
+   불완전하면, 이번 청크에 한해 아래 Fallback으로 직접 구현한다.
+
+#### Fallback: 직접 구현 (되돌릴 때 위 2번 항목 자리로 옮길 문구)
+
+1단계 스코프 노트를 그대로 프롬프트에 포함시켜 넘긴다. 관련 프로젝트 스킬
+(`ridi-test-guides`, `ridi-graphql-structure` 등 해당되는 것)을 읽고 따르도록 위임
+프롬프트에 명시.
 
 위임 전에 각 항목의 성격을 한 번 더 본다 — CS/장애성 버그처럼 즉시 대응이 필요해 보이는
 항목은 이 배치 파이프라인(워크트리 생성~draft PR까지 비동기로 흘러가는)에 태우기 전에

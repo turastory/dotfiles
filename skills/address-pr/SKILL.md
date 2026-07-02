@@ -159,6 +159,41 @@ gh api repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions \
 
 ### Phase 3: 즉시 처리 (그룹 A)
 
+> **EXPERIMENTAL (2026-07-02, 시험 적용)** — 되돌릴 때는 이 블록을 통째로 지우고 아래
+> "Fallback: 직접 구현"의 제목을 다시 "Phase 3: 즉시 처리 (그룹 A)"로 바꾸면 된다. 또는
+> 이 변경을 도입한 커밋을 `git revert`.
+>
+> 그룹 A 구현을 Claude가 직접 하는 대신 `codex:codex-rescue` 서브에이전트에 **그룹 A
+> 전체를 한 번에** 위임해본다.
+
+**위임 절차:**
+
+1. 그룹 A 각 항목을 `{file, line, comment body, comment url, 제안하는 수정 방향}`으로
+   정리한다(Phase 2에서 이미 분류한 내용을 그대로 씀).
+2. `Agent` 도구로 `subagent_type: "codex:codex-rescue"`를 **한 번만** 호출해서 정리한
+   항목 전체를 하나의 태스크로 넘긴다. 프롬프트에 반드시 포함할 것:
+   - 항목 목록 전체(파일/라인/코멘트 원문/코멘트 URL/수정 방향)
+   - 커밋 규칙: 항목(또는 묶음)마다 `git commit --no-verify -m "fix: <설명>"`으로 커밋
+   - 출력 계약: 커밋 SHA와 그 커밋이 반영한 코멘트 URL(또는 항목 번호)의 매핑을 마지막에
+     정리해서 반환 — Phase 5 reply의 커밋 링크에 필요
+   - 그룹 A 범위 밖의 드라이브바이 리팩터링 금지
+3. `--write` 여부는 `codex:codex-rescue`가 기본으로 write-capable 실행을 택하므로 별도
+   지정 불필요. 규모가 작고 명확하므로 foreground로 진행한다.
+4. Codex 세션이 끝나면 검증한다:
+   - `git log --oneline -<그룹A 항목 수>`로 커밋 개수가 항목 수와 맞는지
+   - `git status --short`로 커밋 안 된 변경이 남아있지 않은지
+   - 보고받은 SHA-코멘트 매핑이 실제 커밋 메시지/diff와 맞는지
+   - 이상하면 Phase 4로 넘어가지 말고 사용자에게 먼저 알린다.
+5. 검증 통과 시 Codex가 보고한 SHA 매핑을 Phase 5의 "코멘트-커밋 SHA" 기록으로 그대로
+   사용한다.
+
+Codex 결과가 기대에 못 미치면(엉뚱한 수정, 커밋 컨벤션 무시 등) 이번 실행분만 되돌리고
+(`git reset --hard` 전에 `git status` 확인) 아래 Fallback으로 직접 구현한다.
+
+---
+
+#### Fallback: 직접 구현 (되돌릴 때 이 제목을 "Phase 3: 즉시 처리 (그룹 A)"로 바꿔서 사용)
+
 그룹 A에 해당하는 항목을 순서대로 구현한다.
 
 **커밋 규칙:**
