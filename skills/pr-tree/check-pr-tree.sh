@@ -63,6 +63,52 @@ done < "$TREE_FILE"
 N=${#BRANCHES[@]}
 [ "$N" -gt 0 ] || { echo "FATAL: empty tree" >&2; exit 2; }
 
+# tsv에 이미 추적 중인 branch인가 (master 포함)
+in_tree() {
+  local b="$1" i
+  [ "$b" = "$BASE_ROOT" ] && return 0
+  for ((i=0; i<N; i++)); do [ "${BRANCHES[$i]}" = "$b" ] && return 0; done
+  return 1
+}
+
+# tsv에 이미 추적 중인 branch인가 (master 제외 — master는 누구나의 base라 후보 판정에 못 씀)
+in_tree_branch() {
+  local b="$1" i
+  for ((i=0; i<N; i++)); do [ "${BRANCHES[$i]}" = "$b" ] && return 0; done
+  return 1
+}
+
+# --- tsv의 base 관계로부터 트리(forest) 그림 출력 (git/gh 조회 없이 정적으로 그림) ---
+VISITED=(); for ((i=0; i<N; i++)); do VISITED[$i]=0; done
+print_tree_children() {
+  local parent="$1" prefix="$2" i ci idx=0 count=0
+  local -a kids=()
+  for ((i=0; i<N; i++)); do [ "${BASES[$i]}" = "$parent" ] && kids+=("$i"); done
+  count=${#kids[@]}
+  [ "$count" -gt 0 ] || return 0
+  for ci in "${kids[@]}"; do
+    idx=$((idx+1))
+    VISITED[$ci]=1
+    local branch="${BRANCHES[$ci]}" pr="${PRS[$ci]}" st="${STATUSES[$ci]}" short connector childprefix label
+    short="${branch##*/}"
+    if [ "$idx" = "$count" ]; then connector="└─"; childprefix="${prefix}   "
+    else connector="├─"; childprefix="${prefix}│  "
+    fi
+    label="$short"
+    [ "$pr" != "-" ] && label="$label (#$pr)"
+    [ "$st" = "planned" ] && label="$label ⊘planned"
+    echo "${prefix}${connector} ${label}"
+    print_tree_children "$branch" "$childprefix"
+  done
+}
+echo "-- 트리 구조 --"
+echo "$BASE_ROOT"
+print_tree_children "$BASE_ROOT" ""
+for ((i=0; i<N; i++)); do
+  [ "${VISITED[$i]}" = 0 ] && echo "  ⚠ ${BRANCHES[$i]} — base '${BASES[$i]}' 연결 안 됨 (오탈자/누락 확인)"
+done
+echo
+
 echo "== PR 트리 점검 =="
 echo "repo: $REPO  (gh: ${GH_REPO:-?})"
 echo "tree: $TREE_FILE ($N branches)"
@@ -147,11 +193,32 @@ else
   echo "RESULT: DRIFT — 위 ✗/⚠ 항목 확인 필요"
 fi
 
+# --- 트리 밖 PR 발견: base가 이미 tracked branch인데(master 자체는 제외 — 누구나의 base라 신호가 안 됨) tsv엔 없는 open PR ---
+# 제안만 한다 — tsv 추가는 사용자 확인 후 사람(또는 에이전트)이 한다. exit code에는 영향 없음.
+if [ "$HAS_GH" = 1 ] && [ -n "${GH_REPO:-}" ]; then
+  discovered=0
+  while IFS=$'\t' read -r dpr dhead dbase; do
+    [ -z "${dpr:-}" ] && continue
+    in_tree_branch "$dbase" || continue
+    in_tree "$dhead" && continue
+    if [ "$discovered" = 0 ]; then
+      echo
+      echo "-- 트리 밖 PR 발견 (base가 이미 트리에 있음, pr-tree.tsv엔 없음) --"
+      discovered=1
+    fi
+    echo "  🔎 PR #$dpr  $dhead  (base: $dbase) — pr-tree.tsv에 추가할까요?"
+  done < <(gh pr list --repo "$GH_REPO" --state open --json number,headRefName,baseRefName -q '.[] | [.number, .headRefName, .baseRefName] | @tsv' 2>/dev/null)
+fi
+
 if [ "$DO_PLAN" = 1 ]; then
   echo
   echo "-- cascade 명령 (root→leaf 순서대로 실행; 이미 in-sync면 'Already up to date'로 no-op) --"
   echo "# 각 머지 전 base 워크트리가 push 끝났는지 확인. 충돌 시 해결 후 git commit --no-verify."
-  for cmd in "${PLAN[@]}"; do echo "$cmd"; done
+  if [ "${#PLAN[@]}" -gt 0 ]; then
+    for cmd in "${PLAN[@]}"; do echo "$cmd"; done
+  else
+    echo "(worktree_suffix가 설정된 행이 없어 cascade 명령 없음)"
+  fi
 elif [ "$fail" != 0 ]; then
   echo "(cascade 명령 전체 레시피를 보려면 --plan)"
 fi

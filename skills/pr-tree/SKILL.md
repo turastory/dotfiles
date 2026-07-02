@@ -52,7 +52,11 @@ description: Use when managing a tree/forest of dependent PRs — defining the t
 ~/.agents/skills/pr-tree/check-pr-tree.sh --tree <...> --plan       # + cascade 명령 출력
 ```
 
+출력 맨 앞에 `pr-tree.tsv`의 base 관계로만 그린 **트리 구조 다이어그램**이 먼저 나온다(git/gh 조회 없이 정적으로 생성, forest면 `master` 아래 여러 가지가 나열됨). base가 오타 등으로 트리에 연결되지 않는 행은 `⚠ ... 연결 안 됨`으로 별도 표시된다.
+
 점검 항목(open 행만): ① `origin/<branch>` 존재 ② `origin/<base>` 존재 ③ origin 무결성(child가 base 포함, base-ahead==0) ④ local==origin(push 누락) ⑤ gh PR base/상태 일치(best-effort). 전부 통과면 `RESULT: OK` + exit 0, 아니면 `DRIFT` + exit 1.
+
+추가로(exit code에는 영향 없음): base가 이미 **tracked branch**인데(master 자체는 제외 — 누구나의 base라 신호가 안 됨, 리포 전체 PR이 다 걸림) `pr-tree.tsv`엔 없는 **open PR**을 찾으면 `-- 트리 밖 PR 발견 --` 섹션으로 제안한다. 즉 이미 트리에 있는 브랜치 위에 새로 스택된 PR만 잡는다. **자동으로 tsv에 추가하지 않는다** — 사용자가 "상태 확인"이나 "sync"를 요청해서 이 스크립트를 돌렸을 때, 이 섹션이 출력되면 사용자에게 보여주고 추가할지 확인부터 받은 뒤에만 `pr-tree.tsv`에 행을 추가한다.
 
 ## 새 트리 부트스트랩
 
