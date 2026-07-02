@@ -24,7 +24,8 @@ claude는 GitHub Action이 푸시마다 새 리뷰 요약 코멘트를 올려서
 ## 안전 원칙 (이게 핵심)
 
 - **inline resolve는 자동**으로 한다 — resolve는 되돌릴 수 있고(스레드 unresolve 가능), 정보를 잃지 않는다.
-- **코멘트 삭제는 되돌릴 수 없다.** 삭제 대상 목록을 먼저 사용자에게 보여주고 **승인을 받은 뒤에만** 지운다.
+- **stale claude conversation 코멘트 삭제도 기본적으로 자동**으로 한다 — 승인을 기다리지 않는다. 삭제 대상은 푸시마다 쌓이는 `**Claude finished … task**` 류의 자동 생성 리뷰 요약뿐이고, 최신 1개는 **항상 남긴다.** 옛 커밋 기준 요약이라 정보 가치가 없고 사용자가 이미 "정리"를 요청했으므로 매번 확인을 받을 필요가 없다. 무엇을 지웠는지는 Phase 4 보고에 남긴다.
+- 단, 삭제 대상이 **예상과 다르면**(최신 1개를 빼고도 평소보다 많거나, claude 외 author가 섞였거나, 봇 요약이 아닌 본문) 멈추고 사용자에게 확인한다. 자동은 "전형적인 stale 요약"에 한한다.
 - **claude/cursor 외 사람의 코멘트·스레드는 절대 건드리지 않는다.** cursor의 `<!-- BUGBOT_REVIEW -->` 요약 코멘트도 그대로 둔다(삭제 대상은 claude conversation 코멘트뿐).
 - inline 스레드를 resolve할 때 **`isOutdated`만 보고 닫지 않는다.** outdated는 "그 줄 근처 코드가 바뀌었다"는 뜻일 뿐 "고쳤다"가 아니다. 현재 코드를 읽어 제안이 실제 반영됐을 때만 닫는다.
 
@@ -115,7 +116,7 @@ resolve한 스레드는 `path:line`과 "무엇이 어디서 반영됐는지" 한
 
 ---
 
-## Phase 3: stale claude 코멘트 삭제 (승인 후)
+## Phase 3: stale claude 코멘트 삭제 (자동)
 
 ### 3a. 삭제 대상 선정
 
@@ -125,40 +126,27 @@ Phase 1b에서 모은 claude conversation 코멘트를 `createdAt` 기준 정렬
 - 나머지(더 오래된 것)는 모두 삭제 대상.
 - 코멘트가 1개뿐이면 삭제할 게 없다.
 
-### 3b. 계획 제시 → 승인 대기
+### 3b. 삭제 실행 (기본 자동)
 
-삭제는 비가역이므로 **반드시 먼저 목록을 보여주고 멈춘다.** Phase 2에서 자동으로 resolve한 결과도 함께 요약한다:
+전형적인 stale 요약 정리라면 **승인을 기다리지 말고 바로 삭제한다.** 삭제한 코멘트는 Phase 4 보고에서 보여준다.
+
+```bash
+gh api -X DELETE repos/<owner>/<repo>/issues/comments/<databaseId>
+```
+
+다만 안전 원칙에서 정한 대로, 삭제 대상이 평소와 다르면(최신 1개 외 개수가 비정상적으로 많거나, claude 외 author가 섞였거나, 봇 요약 형태가 아닌 본문) 삭제 전에 멈추고 아래 목록으로 확인을 받는다. 사용자가 "확인하고 지워줘"처럼 명시적으로 승인 절차를 원할 때도 마찬가지로 먼저 보여준다.
 
 ```markdown
-## 정리 계획
-
-### ✅ resolve 완료 (자동, N개)
-- ProgressSection.tsx:53 — null 가드 반영됨(현재 코드 확인)
-- rewardInfoState.ts:131 — 제안대로 변경됨
-- ...
-
-### 🗑 삭제 예정 — claude conversation 코멘트 (M개)
+## 삭제 예정 — claude conversation 코멘트 (M개)
 > 최신 1개는 남깁니다: [issuecomment-<id>](<url>) (<createdAt>)
 
 - [issuecomment-<id>](<url>) — <createdAt> — "Claude finished … 58s" (superseded)
 - ...
 
-### 🔎 그대로 둔 미해결 스레드 (K개)
-- SomeFile.ts:88 (cursor) — 아직 미반영으로 판단, 확인 필요
-- OtherFile.ts:12 (claude) — 사람이 답글 단 진행 중 논의
-
 이 코멘트들을 삭제할까요?
 ```
 
-사용자가 승인하면 3c로. "최신도 지워라" / "이건 빼라" 같은 조정 지시는 반영한다.
-
-### 3c. 삭제 실행
-
-승인된 각 코멘트:
-
-```bash
-gh api -X DELETE repos/<owner>/<repo>/issues/comments/<databaseId>
-```
+"최신도 지워라" / "이건 빼라" 같은 조정 지시는 반영한다.
 
 ---
 
@@ -183,7 +171,7 @@ gh api -X DELETE repos/<owner>/<repo>/issues/comments/<databaseId>
 
 - `isOutdated`만 보고 inline 스레드를 닫기 — 줄만 밀린 것을 "고쳤다"로 오인.
 - 미반영 스레드를 자동 resolve해서 유효한 지적을 묻어버리기.
-- 삭제 목록을 보여주지 않고 바로 코멘트 삭제하기.
+- stale 요약이 아닌 코멘트(claude 외 author, 봇 요약이 아닌 본문)까지 자동 삭제에 휩쓸리기 — 자동은 전형적인 stale 요약에 한한다.
 - 최신 claude 리뷰 코멘트까지 지워 현재 기준 기록을 없애기(사용자가 명시적으로 시키지 않는 한).
 - cursor의 `BUGBOT_REVIEW` 요약이나 사람의 코멘트·스레드를 건드리기.
 - claude의 빈 review 컨테이너를 삭제해 inline 코멘트를 고아로 만들기.
