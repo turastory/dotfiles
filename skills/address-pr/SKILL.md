@@ -34,6 +34,15 @@ Reply 초안 작성 전 `../my-tone/SKILL.md`를 읽고 "리뷰 피드백 처리
 1. `gh auth status` 실행. 인증 실패나 계정 불일치 시 안내 후 중단.
 2. `gh repo view --json nameWithOwner -q .nameWithOwner`로 `owner/repo` 확인.
 
+## PR 미지정 시 대상 결정
+
+PR 번호/URL 없이 호출되면 아래 순서로 대상 PR을 특정한다. 임의 추론으로 바로 작업을 시작하지 말 것.
+
+1. **현재 브랜치**: 브랜치가 PR head와 일치하면(`gh pr view --json number` 성공) 그 PR. 단, `master`/`main`이면 skip.
+2. **인자·맥락 매칭**: 인자로 주어진 링크(Slack 스레드, 이슈 등)나 대화 맥락이 특정 PR 주제와 매칭되는지 확인 — `gh pr list --author "@me" --state open`으로 열린 PR 목록을 뽑아 제목·브랜치명과 대조.
+3. **후보가 하나뿐**이면 그 PR로 진행하되, 첫 보고에서 "대상은 #N으로 판단했다"고 근거와 함께 명시.
+4. **후보가 여럿이거나 매칭 근거가 약하면** 커밋·reply 등 되돌리기 어려운 액션 전에 사용자에게 확인.
+
 ## Prefer git worktrees
 
 현재 해당 PR 브랜치의 전용 worktree에 있지 않은 경우, `.worktrees/pr-<number>/` 경로에 워크트리를 만들어서 작업한다. `using-git-worktrees` 스킬의 디렉터리 규칙 참고.
