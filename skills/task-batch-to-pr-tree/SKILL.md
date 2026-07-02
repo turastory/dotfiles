@@ -16,7 +16,7 @@ description: >-
 
 여러 개의 느슨하게 연관된 작업 항목(Asana task, Slack 스레드/링크, Figma 링크, 혹은 그냥
 평문 텍스트 목록)을 받아서 **① 항목별 컨텍스트 확보 → ② PR 단위로 그룹핑(트리 스케치) →
-③ 청크별 서브에이전트 위임(워크트리+구현+draft PR) → ④ 트리 갱신+리포트** 로 처리한다.
+③ 청크별 서브에이전트 위임(워크트리+구현+draft PR) → ④ 트리 갱신+리포트+완료 알림**으로 처리한다.
 
 이 스킬은 오케스트레이션 레이어다. 트리 정의/점검은 `pr-tree`, 워크트리 생성은
 `superset-cli`, draft PR 작성은 `create-pr`에 그대로 위임한다 — 그 스킬들의 내부 규칙을
@@ -150,3 +150,32 @@ productpay/`, `ls ~/workspaces/project/`).
 마지막으로 사용자에게 **원본 작업 항목 기준**으로 리포트한다: 각 항목이 어느 청크/PR로
 구현됐는지, PR 링크, 트리에서의 위치(어떤 base 위에 있는지). 여러 항목이 한 PR에 묶였으면
 그 PR 링크를 여러 번 나열해도 된다 — 항목 → PR의 매핑이 끊기지 않는 게 중요하다.
+
+### 개인 완료 알림
+
+이 스킬을 사용하는 배치 작업에서는 사용자가 달리 말하지 않는 한, 모든 구현·draft PR 오픈·
+트리 갱신·점검이 끝난 뒤 사용자에게 개인 완료 알림을 보낸다. 일반 self-DM은 보낸 사람과
+받는 사람이 같아 실제 알림이 뜨지 않을 수 있으므로, Slack 개인 알림은 **Slack reminder**를
+우선 사용한다.
+
+현재 런타임에 연결된 Slack 도구에서 `create reminder` / `reminders.add`에 해당하는 기능을
+찾아 사용한다. 특정 에이전트나 플러그인 이름에 하드코딩하지 않는다:
+
+- Codex 예시: `mcp__codex_apps__slack._slack_create_reminder`
+- Claude 예시: Claude에 설정된 Slack plugin/MCP의 reminder 생성 도구
+
+reminder 도구가 없으면 self-DM으로 조용히 대체하지 말고, "현재 Slack 도구에는 본인에게
+알림이 뜨는 reminder 생성 기능이 없다"고 사용자에게 보고한다. 사용자가 다른 알림 채널을
+명시한 경우에만 그 채널을 따른다.
+
+리마인더 시간은 기본 `in 1 minute`로 잡는다. 본문은 PR별 간단 설명과 raw URL만 넣어
+짧게 유지한다:
+
+```text
+작업 완료
+
+- 이벤트 참여 현황 GraphQL 정리
+  https://github.com/ridi/ridi/pull/12345
+- 백오피스 참여 현황 UI 반영
+  https://github.com/ridi/ridi/pull/12346
+```
