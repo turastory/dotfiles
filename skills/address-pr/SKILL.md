@@ -252,6 +252,25 @@ gh api repos/{owner}/{repo}/pulls/{number}/comments/{comment_id}/replies \
 
 Reply 톤: 짧고 자연스럽게, 1~2문장. 한국어 코멘트엔 한국어로, 영어엔 영어로. 커밋 링크는 본문과 한 줄 띄워 마지막에 둔다.
 
+### Pending review가 있을 때 (예: comment-own-pr과 같은 세션)
+
+내 계정의 pending review가 열려 있으면 위 REST reply endpoint가 422(`user_id can only have one pending review per pull request`)로 실패한다. GitHub이 reply를 새 단건 리뷰로 만들려다 pending 1개 제한에 걸리는 것.
+
+- **순서 권장**: 같은 세션에서 `comment-own-pr` 등으로 pending review를 만들 계획이면, **공개 reply를 먼저 모두 남긴 뒤** pending review를 생성한다.
+- **이미 pending이 있으면**: GraphQL `addPullRequestReviewThreadReply`에 `pullRequestReviewId`(pending review의 node id, `PRR_...`)와 `pullRequestReviewThreadId`(`PRRT_...`)를 넘겨 답글을 pending review에 합류시킨다. 이 답글은 **pending review submit 시점에야 공개**되므로, 사용자 보고에 그 사실을 명시한다.
+
+```bash
+# pending review id와 thread id 조회
+gh api graphql -f query='query { repository(owner:"O", name:"R") { pullRequest(number:N) {
+  reviews(first:10, states:PENDING) { nodes { id author{login} } }
+  reviewThreads(first:100) { nodes { id comments(first:1) { nodes { fullDatabaseId } } } }
+} } }'
+# 답글을 pending review에 추가
+gh api graphql -f query='mutation($threadId:ID!, $reviewId:ID!, $body:String!) {
+  addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$threadId, pullRequestReviewId:$reviewId, body:$body}) { comment { url } }
+}' -F threadId=... -F reviewId=... -f body="..."
+```
+
 ---
 
 ### Phase 6: 사용자에게 보고 (그룹 A 요약 + 그룹 B 리스트업)
@@ -337,6 +356,7 @@ thread의 첫 번째 comment URL을 기반으로 reply endpoint를 찾는다:
 - 구현 없이 "처리했다"고만 reply 달기
 - 그룹 A 처리 전에 그룹 B를 보여주기 (순서 지키기)
 - 푸시 전에 reply 달기 — reply에 링크한 커밋이 아직 push되지 않으면 링크가 죽는다. 관련 커밋을 먼저 push하고 reply를 남긴다.
+- pending review 생성 후에 공개 reply 시도하기 — REST reply가 422로 막힌다. 공개 reply를 먼저 끝내고 pending review를 만들거나, GraphQL로 pending에 합류시킨다.
 - 관련 없는 드라이브바이 리팩터링 섞기
 
 ---
