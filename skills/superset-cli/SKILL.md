@@ -33,8 +33,11 @@ superset hosts list      # 접근 가능한 호스트(맥 등) 목록
 ### 생성
 
 ```sh
+PROJECT_ID="$(superset projects list | awk '$1 == "ridi" && $4 == "yes" {print $6; exit}')"
+
 superset workspaces create \
-  --project ridi --local \
+  --project "$PROJECT_ID" --local \
+  --name <short-workspace-name> \
   --branch productpay/<feature>/<details> \
   [--base-branch master] \
   [--agent claude --prompt "..."] \
@@ -42,6 +45,8 @@ superset workspaces create \
   [--attachment <path>]
 ```
 
+- `--name`은 현재 CLI에서 필수다. 사람이 알아볼 짧은 workspace 이름을 넣는다.
+- `--project`는 `ridi` slug가 환경/버전에 따라 `Project is not set up on this host`로 실패할 수 있다. 생성 전에 `superset projects list`에서 `SET UP=yes`인 `ridi` 행의 `ID`를 확인해 그 UUID를 넘긴다. 값은 바뀔 수 있으니 하드코딩하지 않는다.
 - `--branch`는 존재하지 않으면 `--base-branch`(기본: 프로젝트 default)에서 새로 판다.
 - 기존 PR을 체크아웃하려면 `--branch` 대신 `--pr <number>` (검증된 PR head 체크아웃).
 - `--agent`를 주면 생성 직후 그 워크스페이스에서 바로 에이전트 세션이 시작된다 (`--prompt` 필수). 안 주면 워크스페이스만 만들고 끝.
@@ -52,11 +57,13 @@ superset workspaces create \
 ### 조회 / 열기 / 정리
 
 ```sh
-superset workspaces list [--project ridi] [--search <branch나 이름 substring>]
+superset workspaces list [--project <project-id>] [--search <branch나 이름 substring>]
 superset workspaces open <id>      # Superset 데스크톱 앱에서 열기
 superset workspaces update <id> ...
 superset workspaces delete <id>
 ```
+
+Superset이 만든 실제 worktree 경로는 CLI 버전에 따라 `~/.superset/worktrees/ridi/...`가 아니라 `~/.superset/worktrees/<project-id>/...` 형태일 수 있다. 경로가 필요하면 `git worktree list --porcelain` 또는 `superset workspaces list`로 방금 만든 branch/name을 다시 조회한다.
 
 ## 생성 후 부트스트랩이 안 됐다면 (`.superset/setup.sh`)
 
@@ -135,7 +142,7 @@ superset automations logs <id>       # 실행 이력
 ## 프로젝트 / 조직
 
 ```sh
-superset projects list                                   # 등록된 프로젝트 (ridi 등)
+superset projects list                                   # 등록된 프로젝트 (ridi 등)와 ID 확인
 superset projects create ...
 superset projects setup <id> --path <repo> [--parent-dir ...] [--import ...] [--allow-relocate]
 
