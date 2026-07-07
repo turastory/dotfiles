@@ -44,6 +44,10 @@ Lint 에러가 발생하면 다음 순서로 처리한다.
 
 # RIDI
 
+## 팀 코드 컨벤션
+
+RIDI 코드를 작성·리뷰할 때는 상품&결제팀 공통 코드 컨벤션 문서 `~/.agents/AGENTS.team.md`를 따를 것 (공통 원칙, 네이밍, 코드 스타일, 타입 안전성, 쿼리/DB, 트랜잭션, 에러 처리, 테스트, Feature Flag, React, Git/PR, 코드 리뷰 기준).
+
 ## 테스트
 
 `ridi` monorepo(`backends/`, `internal-products/backends/` 등)에서 테스트를 **작성·수정·리뷰**할 때는 반드시 `~/.agents/skills/ridi-test-guides/SKILL.md`를 먼저 읽고, 그 안의 컨벤션(fixture 배치, assertion, feature flag describe 분리, query vs API 역할, `dbFixtureHooks` 사용 등)을 빠짐없이 반영할 것. 스킬과 충돌하는 축약·헬퍼·중복 시나리오는 피하고, 기존 레퍼런스 테스트 파일 패턴을 우선 따른다. 서브에이전트에 RIDI backend 테스트 작업을 위임할 때도, 위임 프롬프트에 `ridi-test-guides`를 읽고 따르도록 명시할 것.
