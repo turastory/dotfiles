@@ -215,3 +215,6 @@ source ~/.local/share/envs/envs-source.sh
 
 # local-only config
 [[ -r "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
+
+# Vite+ bin (https://viteplus.dev)
+. "$HOME/.vite-plus/env"

@@ -35,3 +35,6 @@ path_prepend "$BUN_INSTALL/bin"
 unset -f path_prepend
 
 alias assume=". assume"
+
+# Vite+ bin (https://viteplus.dev)
+. "$HOME/.vite-plus/env"
