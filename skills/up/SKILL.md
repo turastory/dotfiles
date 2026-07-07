@@ -14,7 +14,7 @@ Each target is a set of servers launched together. Paths are relative to the wor
 | Target | Servers |
 |---|---|
 | `books-islands` | `frontends/web/ridibooks` → `envs local pnpm dev` (frontend, port 8338) · `backends` → `envs dev pnpm start:dev` (main backends) |
-| `backoffice` | `internal-products/backends` → `pnpm start:bo` (BO backend, gRPC-web on port 9090) · `internal-products/frontends/backoffice` → `pnpm dev` (Vite frontend, port 5173 at `/backoffice/`) · **prereq:** QueryPie agent on port 40032 (see below) |
+| `backoffice` | `internal-products/backends` → `pnpm start:bo` (BO backend listens on port 8088; gRPC-web goes through Envoy on port 9090) · `internal-products/frontends/backoffice` → `pnpm dev` (Vite frontend, port 5173 at `/backoffice/`) · **prereq:** QueryPie agent on port 40032 (see below) · **infra:** Traefik + backend Docker infra from `backends/setup.sh` (see below) |
 
 When the user names a target not in this table, list the known targets and ask which they meant — don't guess and launch the wrong thing.
 
@@ -26,17 +26,25 @@ Adding a target later is just a new row here: a friendly name plus its `<dir> �
 
 1. **Resolve the root.** Run `git rev-parse --show-toplevel` once. Every server's `cd` is relative to this, so the skill works from any subdirectory of the worktree.
 
-2. **Launch each server in the background.** One background Bash call per server, e.g. `cd <root>/frontends/web/ridibooks && envs local pnpm dev`. Run them in the same turn so they boot in parallel. Use the background mode of the Bash tool (not a trailing `&`) so the harness tracks each process and surfaces its output.
+2. **Bootstrap target infrastructure.** For `backoffice`, use `backends/setup.sh` as the source of truth for local environment subsystems, but don't blindly run the whole script during `/up` unless the user asked for full workstation setup. The full script can prompt for package installs, sudo `/etc/hosts` edits, Composer work, and books-backend containers. For normal `up backoffice`, run the relevant deterministic pieces:
+   - Ensure Docker daemon is running (`docker info`); if it is installed but stopped, open Docker and wait until it is ready.
+   - Start Traefik from `tools/traefik`: `make certs && docker compose up -d`.
+   - Start backend infra from `internal-products/backends`: `pnpm docker:infra` (this delegates to `pnpm docker:infra` in `backends`).
+   - Verify infra ports before app servers: Traefik `80`/`443`/`8090`, Envoy `9090`, Redis `6379`, Redis cluster `17000-17005`, Kafka `9092`, Kafka UI `8989` when present.
+   - If compose says containers are running but ports are missing, recreate the stale service with `docker compose -f docker-compose.yml -f docker-compose.infra.yml --profile kafka-single up -d --force-recreate <service>` from `backends` (for example `redis` or `redis-cluster`), then re-check ports.
 
-3. **Confirm they came up.** Dev servers take a bit to compile. Give them a moment, then check each one's background output for the "ready"/"listening" line (or that the port is accepting connections) before declaring success. Watch with a background `until grep` loop rather than blocking the foreground. If one crashes on boot — a port already in use, a missing `.env`, a worktree `node_modules` problem (see Notes) — surface the actual error from its log instead of reporting a clean start.
+3. **Launch each server in the background.** One background Bash call per server, e.g. `cd <root>/frontends/web/ridibooks && envs local pnpm dev`. Run them in the same turn so they boot in parallel. Use the background mode of the Bash tool (not a trailing `&`) so the harness tracks each process and surfaces its output. For `backoffice`, start the BO backend with Node 22 pinned if the shell can resolve a newer Homebrew Node first: `PATH=/Users/nayoonho/.nvm/versions/node/v22.22.0/bin:$PATH pnpm start:bo`.
 
-4. **Report.** Tell the user, per server: which command is running, the URL/port to open, and how to follow the logs. For `books-islands` the live URLs are the ridibooks frontend at `http://localhost:8338` (TLS via `https://next.local.ridi.io`) and the backends at `http://local.ridi.io:8080`. For `backoffice` the frontend is at `http://localhost:5173/backoffice/` (it proxies `/ridi.backoffice.*` to the BO backend on `localhost:9090`); also restate the QueryPie status from step 0 — if port 40032 was down, repeat that the user must log in to the QueryPie agent for the BO backend to reach dev DB. Remind them the servers keep running in the background; to stop them, kill the background tasks (`ts-node-dev … src/apps` for backends — note `--respawn` means it survives a child crash, so kill the process, don't expect the task to exit on error).
+4. **Confirm they came up.** Dev servers take a bit to compile. Give them a moment, then check each one's background output for the "ready"/"listening" line (or that the port is accepting connections) before declaring success. Watch with a background `until grep` loop rather than blocking the foreground. If one crashes on boot — a port already in use, a missing `.env`, a worktree `node_modules` problem (see Notes) — surface the actual error from its log instead of reporting a clean start.
+
+5. **Report.** Tell the user, per server: which command is running, the URL/port to open, and how to follow the logs. For `books-islands` the live URLs are the ridibooks frontend at `http://localhost:8338` (TLS via `https://next.local.ridi.io`) and the backends at `http://local.ridi.io:8080`. For `backoffice` the frontend is at `http://localhost:5173/backoffice/`, the BO backend listens on `localhost:8088`, and browser gRPC-web traffic goes through Envoy on `localhost:9090`; also restate the QueryPie status from step 0 — if port 40032 was down, repeat that the user must log in to the QueryPie agent for the BO backend to reach dev DB. Remind them the servers keep running in the background; to stop them, kill the background tasks (`ts-node-dev … src/apps` for backends — note `--respawn` means it survives a child crash, so kill the process, don't expect the task to exit on error).
 
 ## Notes
 
 - **One target, two servers — that's expected.** `/up books-islands` intentionally spawns both the frontend and the backends it talks to; that's the whole point of the target.
 - **Don't substitute commands.** `envs dev pnpm start:dev` and `envs local pnpm dev` are the literal commands — don't "simplify" to plain `pnpm dev` or swap env names. The env routing is load-bearing.
 - **Node version for backends:** backends needs the repo's Node 22 (native modules are built against it). If the default `node` is something else, prefix with `PATH=/Users/nayoonho/.nvm/versions/node/v22.22.0/bin:$PATH`.
+- **Backoffice source of truth:** `backends/setup.sh` documents the local environment subsystems. For `/up backoffice`, reuse its Traefik and backend infra steps, but avoid running the full script unless the user explicitly wants package install, host file, and books-backend setup side effects.
 
 ### Superset-worktree recovery (backends)
 
