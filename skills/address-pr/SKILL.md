@@ -119,6 +119,15 @@ gh api graphql -f query='
 
 **유효성 판단 먼저**: 코멘트가 잘못된 전제, 이미 반영된 내용, 또는 무관한 FYI/praise라면 → skip 처리하고 이유를 명시.
 
+**코멘트를 표면 그대로 반영하지 말고, 한 번 더 생각해서 근본 개선으로 확장한다.** 리뷰어의 코멘트는 대개 "이 지점에서 뭔가 걸린다"는 신호이지, 반드시 문자 그대로 따라야 할 스펙이 아니다. 반영에 들어가기 전에 두 가지를 생각한다:
+
+1. **코멘트 뒤의 의도를 읽고, 더 나은 방향이 있으면 그쪽으로.** 리뷰어가 지적한 표면 증상만 고치면 정작 그가 신경 쓴 근본 문제는 그대로 남을 수 있다. 주변 코드를 함께 보고, 코멘트가 가리키는 진짜 문제를 더 깔끔하게 푸는 방법(기존 코드베이스의 패턴 재사용, 같은 문제가 반복되는 다른 지점까지 함께 정리 등)이 있으면 그 방향으로 반영한다. 문자 그대로의 요청과 다른 방향을 택했다면 reply에서 왜 그렇게 했는지 짧게 설명한다.
+2. **변경의 파급을 끝까지 따라간다.** 하나의 코멘트를 반영하면 그것을 참조하는 다른 코드, 그 코드에 대한 테스트, 관련 주석/문서까지 영향을 받을 수 있다. 예를 들어 "이 코드 삭제해도 될 것 같아요"는 그 코드만 지우는 게 아니라 → 그걸 부르던 호출부 정리, 이제 죽은(dead) 다른 코드나 불필요해진 테스트 제거, 오래된 주석 갱신까지 포함한다. 반쪽짜리 반영은 리뷰어가 다시 지적하게 만든다.
+
+이건 "관련 없는 드라이브바이 리팩터링"(Anti-patterns 참조)과는 다르다 — 코멘트가 **인과적으로 요구하거나 코멘트가 짚은 문제를 직접 개선하는** 변경은 반영 범위 안이고, 코멘트와 무관한 김에 하는 청소는 범위 밖이다.
+
+이 관점은 그룹 분류에도 영향을 준다. 표면적으론 trivial해 보여도 파급이 크거나 방향 판단이 필요하면 그룹 B로 올려 사용자에게 확인한다. 반대로 파급까지 포함해도 자명하면 그룹 A에서 파급분까지 한 번에 처리한다.
+
 **비슷한 변경끼리 묶기**: 같은 파일·같은 패턴에 해당하는 코멘트는 하나의 처리 단위로 묶어도 된다. 단, 원문은 모두 보존.
 
 #### 그룹 A: 즉시 처리 (trivial)
@@ -130,6 +139,8 @@ gh api graphql -f query='
 - "왜 이렇게 했나요?" 같은 단순 질문 (답변으로 해결)
 - 트레이드오프가 있거나 판단이 필요한 것
 - 리뷰어의 의도가 불분명한 것
+
+**의도를 묻는 질문의 답변 초안은 `justify-pr` 스킬을 참조한다.** "왜 이렇게 구현했는지", "이게 최선인지" 류의 코멘트면 `../justify-pr/SKILL.md`의 분석 관점(왜 이렇게 할 수밖에 없었는가 / 이게 최선인가, 대안 stress-test와 근거 인용)을 읽고 그 기준으로 답변을 잡는다. stress-test 결과 리뷰어 지적이 맞다면 정당화 답변 대신 수정 항목으로 사용자에게 보고한다.
 
 ---
 
@@ -176,7 +187,10 @@ gh api repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions \
    - 커밋 규칙: 항목(또는 묶음)마다 `git commit --no-verify -m "fix: <설명>"`으로 커밋
    - 출력 계약: 커밋 SHA와 그 커밋이 반영한 코멘트 URL(또는 항목 번호)의 매핑을 마지막에
      정리해서 반환 — Phase 5 reply의 커밋 링크에 필요
-   - 그룹 A 범위 밖의 드라이브바이 리팩터링 금지
+   - 각 항목은 코멘트를 문자 그대로가 아니라 의도대로 반영하고, 변경의 파급(호출부·
+     죽은 코드·불필요해진 테스트·오래된 주석)까지 함께 정리할 것 (Phase 2의 "근본 개선으로
+     확장" 원칙을 그대로 전달)
+   - 단, 코멘트와 무관한 드라이브바이 리팩터링은 금지
 3. `--write` 여부는 `codex:codex-rescue`가 기본으로 write-capable 실행을 택하므로 별도
    지정 불필요. 규모가 작고 명확하므로 foreground로 진행한다.
 4. Codex 세션이 끝나면 검증한다:
@@ -252,11 +266,11 @@ gh api repos/{owner}/{repo}/pulls/{number}/comments/{comment_id}/replies \
 
 Reply 톤: 짧고 자연스럽게, 1~2문장. 한국어 코멘트엔 한국어로, 영어엔 영어로. 커밋 링크는 본문과 한 줄 띄워 마지막에 둔다.
 
-### Pending review가 있을 때 (예: comment-own-pr과 같은 세션)
+### Pending review가 있을 때 (예: review-pr과 같은 세션)
 
 내 계정의 pending review가 열려 있으면 위 REST reply endpoint가 422(`user_id can only have one pending review per pull request`)로 실패한다. GitHub이 reply를 새 단건 리뷰로 만들려다 pending 1개 제한에 걸리는 것.
 
-- **순서 권장**: 같은 세션에서 `comment-own-pr` 등으로 pending review를 만들 계획이면, **공개 reply를 먼저 모두 남긴 뒤** pending review를 생성한다.
+- **순서 권장**: 같은 세션에서 `review-pr` 등으로 pending review를 만들 계획이면, **공개 reply를 먼저 모두 남긴 뒤** pending review를 생성한다. (`justify-pr`는 pending review 없이 바로 다는 방식이라 이 제약과 무관하지만, 반대로 내 pending review가 이미 열려 있으면 `justify-pr`의 직접 코멘트가 422로 막힌다.)
 - **이미 pending이 있으면**: GraphQL `addPullRequestReviewThreadReply`에 `pullRequestReviewId`(pending review의 node id, `PRR_...`)와 `pullRequestReviewThreadId`(`PRRT_...`)를 넘겨 답글을 pending review에 합류시킨다. 이 답글은 **pending review submit 시점에야 공개**되므로, 사용자 보고에 그 사실을 명시한다.
 
 ```bash

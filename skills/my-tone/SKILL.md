@@ -161,18 +161,23 @@ RIDI PR 리뷰 코멘트는 pending review로 모으는 전제를 유지한다.
 - 정책이 모호하면 직접 결정하지 말고 기획자 확인 요청으로 남긴다.
 - 코멘트를 다 모은 뒤에는 파일/라인/요지를 짧게 요약한다.
 
-## AI 작성 표기 (Sent by AI)
+## AI 작성 표기 (Sent by …)
 
-PR에 올라갈 코멘트 본문은 끝에 AI가 작성했음을 알리는 꼬리표를 붙인다. 대상은 리뷰 코멘트, 내 PR inline 설명, 작성자 답글 등 PR에 들어갈 모든 코멘트 본문이다.
+PR에 올라갈 코멘트 본문은 끝에 어떤 AI가 작성했는지 알리는 꼬리표를 붙인다. 대상은 리뷰 코멘트, 내 PR inline 설명, 작성자 답글 등 PR에 들어갈 모든 코멘트 본문이다.
 
-- 각 코멘트 본문 끝에 빈 줄을 두고 다음 footer를 붙인다:
+footer 문구는 지금 작성 중인 에이전트가 누구인지에 따라 정한다.
+
+- Claude(Anthropic)로 동작 중이면 실행 중인 모델 이름을 쓴다: Opus면 `_Sent by Opus_`, Sonnet이면 `_Sent by Sonnet_`, Fable이면 `_Sent by Fable_`.
+- gpt(Codex)로 동작 중이면 `_Sent by Codex_`.
+
+- 각 코멘트 본문 끝에 빈 줄을 두고 위에서 정한 footer를 붙인다. 예:
 
   ```
-  _Sent by AI_
+  _Sent by Opus_
   ```
 
 - pending review처럼 한 번에 여러 코멘트를 다는 경우, 각 코멘트 본문마다 붙인다.
-- 사용자가 직접 붙여 넣는 초안(`comment-own-pr`·`address-pr`)에도 footer를 포함해, 그대로 붙여 넣으면 표기가 남도록 한다.
+- 사용자가 직접 붙여 넣는 초안(`justify-pr`·`address-pr`)에도 footer를 포함해, 그대로 붙여 넣으면 표기가 남도록 한다.
 - 본문 외 요약/리포트/PR 본문에는 붙이지 않는다 — PR에 코멘트로 올라가는 텍스트에만 적용한다.
 
 ## 문장 다듬기 체크리스트
